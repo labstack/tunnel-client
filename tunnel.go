@@ -35,10 +35,14 @@ func (t *Tunnel) Create() {
 			ssh.Password("password"),
 		},
 		HostKeyCallback: ssh.FixedHostKey(hostKey),
+		BannerCallback: func(message string) error {
+			fmt.Print(message)
+			return nil
+		},
 	}
 
 	// Connect
-	client, err := ssh.Dial("tcp", "localhost:2200", config)
+	client, err := ssh.Dial("tcp", "labstack.me:22", config)
 	if err != nil {
 		log.Fatalf("Failed to connect %v\n", err)
 	}
