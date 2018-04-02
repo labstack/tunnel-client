@@ -2,4 +2,6 @@
 
 ## Tunnel
 
+Tunnel lets you expose local servers to the internet securely - ngrok alternative, compatible with SSH client.
+
 ## [Docs](https://labstack.com/docs/diy/tunnel) | [Forum](https://forum.labstack.com)

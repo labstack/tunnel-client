@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	confFile string
-	rootCmd  = &cobra.Command{
+	configFile string
+	rootCmd    = &cobra.Command{
 		Use:   "tunnel",
 		Short: "Tunnel lets you expose local servers to the internet securely",
 		Long:  ``,
@@ -29,14 +29,14 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVarP(&confFile, "config", "c", "", "config file (default is $HOME/.tunnel.yaml)")
+	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "config file (default is $HOME/.tunnel.yaml)")
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	if confFile != "" {
+	if configFile != "" {
 		// Use config file from the flag.
-		viper.SetConfigFile(confFile)
+		viper.SetConfigFile(configFile)
 	} else {
 		// Find home directory.
 		home, err := homedir.Dir()
