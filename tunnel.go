@@ -6,6 +6,9 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/http"
+	"net/url"
+	"os"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -40,9 +43,46 @@ func (t *Tunnel) Create() {
 			return nil
 		},
 	}
+	hostport := "labstack.me:22"
+	var client *ssh.Client
 
 	// Connect
-	client, err := ssh.Dial("tcp", "labstack.me:22", config)
+	proxy := os.Getenv("http_proxy")
+	if proxy != "" {
+		proxyUrl, err := url.Parse(proxy)
+		if err != nil {
+			log.Fatalf("cannot open new session: %v\n", err)
+		}
+		tcp, err := net.Dial("tcp", proxyUrl.Host)
+		if err != nil {
+			log.Fatalf("cannot open new session: %v\n", err)
+		}
+		connReq := &http.Request{
+			Method: "CONNECT",
+			URL:    &url.URL{Path: hostport},
+			Host:   hostport,
+			Header: make(http.Header),
+		}
+		if proxyUrl.User != nil {
+			if p, ok := proxyUrl.User.Password(); ok {
+				connReq.SetBasicAuth(proxyUrl.User.Username(), p)
+			}
+		}
+		connReq.Write(tcp)
+		resp, err := http.ReadResponse(bufio.NewReader(tcp), connReq)
+		if err != nil {
+			log.Fatalf("cannot open new session: %v\n", err)
+		}
+		defer resp.Body.Close()
+
+		c, chans, reqs, err := ssh.NewClientConn(tcp, hostport, config)
+		if err != nil {
+			log.Fatalf("cannot open new session: %v\n", err)
+		}
+		client = ssh.NewClient(c, chans, reqs)
+	} else {
+		client, err = ssh.Dial("tcp", hostport, config)
+	}
 	if err != nil {
 		log.Fatalf("Failed to connect %v\n", err)
 	}
@@ -88,6 +128,7 @@ func (t *Tunnel) Create() {
 			out, err := net.Dial("tcp", fmt.Sprintf("%s:%d", t.TargetHost, t.TargetPort))
 			if err != nil {
 				log.Printf("%v\n", err)
+				return
 			}
 			defer out.Close()
 
