@@ -49,11 +49,11 @@ func (t *Tunnel) Create() {
 	// Connect
 	proxy := os.Getenv("http_proxy")
 	if proxy != "" {
-		proxyUrl, err := url.Parse(proxy)
+		proxyURL, err := url.Parse(proxy)
 		if err != nil {
 			log.Fatalf("cannot open new session: %v\n", err)
 		}
-		tcp, err := net.Dial("tcp", proxyUrl.Host)
+		tcp, err := net.Dial("tcp", proxyURL.Hostname())
 		if err != nil {
 			log.Fatalf("cannot open new session: %v\n", err)
 		}
@@ -63,9 +63,9 @@ func (t *Tunnel) Create() {
 			Host:   hostport,
 			Header: make(http.Header),
 		}
-		if proxyUrl.User != nil {
-			if p, ok := proxyUrl.User.Password(); ok {
-				connReq.SetBasicAuth(proxyUrl.User.Username(), p)
+		if proxyURL.User != nil {
+			if p, ok := proxyURL.User.Password(); ok {
+				connReq.SetBasicAuth(proxyURL.User.Username(), p)
 			}
 		}
 		connReq.Write(tcp)
