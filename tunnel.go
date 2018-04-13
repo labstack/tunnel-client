@@ -4,11 +4,12 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+
+	"github.com/labstack/gommon/log"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -20,6 +21,7 @@ type (
 		RemotePort int
 		TargetHost string
 		TargetPort int
+		HideBanner bool
 	}
 )
 
@@ -30,7 +32,7 @@ var (
 func (t *Tunnel) Create() {
 	hostKey, _, _, _, err := ssh.ParseAuthorizedKey(hostBytes)
 	if err != nil {
-		log.Fatalf("Failed to parse host key %v\n", err)
+		log.Fatalf("Failed to parse host key %v", err)
 	}
 	config := &ssh.ClientConfig{
 		User: t.Protocol,
@@ -39,7 +41,9 @@ func (t *Tunnel) Create() {
 		},
 		HostKeyCallback: ssh.FixedHostKey(hostKey),
 		BannerCallback: func(message string) error {
-			fmt.Print(message)
+			if !t.HideBanner {
+				fmt.Print(message)
+			}
 			return nil
 		},
 	}
@@ -51,11 +55,11 @@ func (t *Tunnel) Create() {
 	if proxy != "" {
 		proxyURL, err := url.Parse(proxy)
 		if err != nil {
-			log.Fatalf("cannot open new session: %v\n", err)
+			log.Fatalf("Cannot open new session %v", err)
 		}
 		tcp, err := net.Dial("tcp", proxyURL.Hostname())
 		if err != nil {
-			log.Fatalf("cannot open new session: %v\n", err)
+			log.Fatalf("Cannot open new session %v", err)
 		}
 		connReq := &http.Request{
 			Method: "CONNECT",
@@ -71,27 +75,27 @@ func (t *Tunnel) Create() {
 		connReq.Write(tcp)
 		resp, err := http.ReadResponse(bufio.NewReader(tcp), connReq)
 		if err != nil {
-			log.Fatalf("cannot open new session: %v\n", err)
+			log.Fatalf("Cannot open new session %v", err)
 		}
 		defer resp.Body.Close()
 
 		c, chans, reqs, err := ssh.NewClientConn(tcp, hostport, config)
 		if err != nil {
-			log.Fatalf("cannot open new session: %v\n", err)
+			log.Fatalf("Cannot open new session %v", err)
 		}
 		client = ssh.NewClient(c, chans, reqs)
 	} else {
 		client, err = ssh.Dial("tcp", hostport, config)
 	}
 	if err != nil {
-		log.Fatalf("Failed to connect %v\n", err)
+		log.Fatalf("Failed to connect %v", err)
 	}
 	defer client.Close()
 
 	// Session
 	sess, err := client.NewSession()
 	if err != nil {
-		log.Fatalf("Failed to create session %v\n", err)
+		log.Fatalf("Failed to create session %v", err)
 	}
 	defer sess.Close()
 	r, err := sess.StdoutPipe()
@@ -109,7 +113,7 @@ func (t *Tunnel) Create() {
 	// Remote listener
 	ln, err := client.Listen("tcp", fmt.Sprintf("%s:%d", t.RemoteHost, t.RemotePort))
 	if err != nil {
-		log.Fatalf("Failed to listen on remote host %v\n", err)
+		log.Fatalf("Failed to listen on remote host %v", err)
 	}
 	defer ln.Close()
 
@@ -117,7 +121,7 @@ func (t *Tunnel) Create() {
 		// Handle inbound connection
 		in, err := ln.Accept()
 		if err != nil {
-			log.Printf("Failed to accept connection %v\n", err)
+			log.Printf("Failed to accept connection %v", err)
 			break
 		}
 
@@ -127,7 +131,7 @@ func (t *Tunnel) Create() {
 			// Target connection
 			out, err := net.Dial("tcp", fmt.Sprintf("%s:%d", t.TargetHost, t.TargetPort))
 			if err != nil {
-				log.Printf("%v\n", err)
+				log.Printf("Failed to connect to target %v", err)
 				return
 			}
 			defer out.Close()
@@ -144,7 +148,7 @@ func (t *Tunnel) Create() {
 			// Handle error
 			err = <-errCh
 			if err != nil && err != io.EOF {
-				log.Printf("Failed to copy %v\n", err)
+				log.Printf("Failed to copy %v", err)
 			}
 		}(in)
 	}
