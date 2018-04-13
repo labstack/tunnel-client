@@ -1,8 +1,8 @@
-VERSION = 0.1.2
+VERSION = 0.1.3
 
-build:
+publish:
 	git tag $(VERSION)
 	git push origin --tags
 	goreleaser --rm-dist
 
-.PHONY: build
+.PHONY: publish 

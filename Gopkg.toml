@@ -26,6 +26,10 @@
 
 
 [[constraint]]
+  name = "github.com/labstack/gommon"
+  version = "0.2.4"
+
+[[constraint]]
   branch = "master"
   name = "github.com/mitchellh/go-homedir"
 
@@ -37,10 +41,10 @@
   name = "github.com/spf13/viper"
   version = "1.0.2"
 
-[prune]
-  go-tests = true
-  unused-packages = true
-
 [[constraint]]
   branch = "master"
   name = "golang.org/x/crypto"
+
+[prune]
+  go-tests = true
+  unused-packages = true
