@@ -122,7 +122,7 @@ func (t *Tunnel) Create() {
 		in, err := ln.Accept()
 		if err != nil {
 			log.Printf("Failed to accept connection %v", err)
-			break
+			return
 		}
 
 		go func(in net.Conn) {
