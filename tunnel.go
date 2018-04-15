@@ -16,12 +16,22 @@ import (
 
 type (
 	Tunnel struct {
-		Protocol   string
+		Protocol   string `json:"protocol"`
+		Subdomain  string `json:"subdomain"`
+		Domain     string `json:"domain"`
+		Port       int    `json:"port"`
+		Host       string `json:"host"`
+		User       string
 		RemoteHost string
 		RemotePort int
 		TargetHost string
 		TargetPort int
 		HideBanner bool
+	}
+
+	Error struct {
+		Code    int    `json:"code,omitempty"`
+		Message string `json:"message"`
 	}
 )
 
@@ -32,10 +42,10 @@ var (
 func (t *Tunnel) Create() {
 	hostKey, _, _, _, err := ssh.ParseAuthorizedKey(hostBytes)
 	if err != nil {
-		log.Fatalf("Failed to parse host key %v", err)
+		log.Fatalf("Failed to parse host key: %v", err)
 	}
 	config := &ssh.ClientConfig{
-		User: t.Protocol,
+		User: t.User,
 		Auth: []ssh.AuthMethod{
 			ssh.Password("password"),
 		},
@@ -47,24 +57,23 @@ func (t *Tunnel) Create() {
 			return nil
 		},
 	}
-	hostport := "labstack.me:22"
-	var client *ssh.Client
+	client := new(ssh.Client)
 
 	// Connect
 	proxy := os.Getenv("http_proxy")
 	if proxy != "" {
 		proxyURL, err := url.Parse(proxy)
 		if err != nil {
-			log.Fatalf("Cannot open new session %v", err)
+			log.Fatalf("Cannot open new session: %v", err)
 		}
 		tcp, err := net.Dial("tcp", proxyURL.Hostname())
 		if err != nil {
-			log.Fatalf("Cannot open new session %v", err)
+			log.Fatalf("Cannot open new session: %v", err)
 		}
 		connReq := &http.Request{
 			Method: "CONNECT",
-			URL:    &url.URL{Path: hostport},
-			Host:   hostport,
+			URL:    &url.URL{Path: t.Host},
+			Host:   t.Host,
 			Header: make(http.Header),
 		}
 		if proxyURL.User != nil {
@@ -75,27 +84,27 @@ func (t *Tunnel) Create() {
 		connReq.Write(tcp)
 		resp, err := http.ReadResponse(bufio.NewReader(tcp), connReq)
 		if err != nil {
-			log.Fatalf("Cannot open new session %v", err)
+			log.Fatalf("Cannot open new session: %v", err)
 		}
 		defer resp.Body.Close()
 
-		c, chans, reqs, err := ssh.NewClientConn(tcp, hostport, config)
+		c, chans, reqs, err := ssh.NewClientConn(tcp, t.Host, config)
 		if err != nil {
-			log.Fatalf("Cannot open new session %v", err)
+			log.Fatalf("Cannot open new session: %v", err)
 		}
 		client = ssh.NewClient(c, chans, reqs)
 	} else {
-		client, err = ssh.Dial("tcp", hostport, config)
+		client, err = ssh.Dial("tcp", t.Host, config)
 	}
 	if err != nil {
-		log.Fatalf("Failed to connect %v", err)
+		log.Fatalf("Failed to connect: %v", err)
 	}
 	defer client.Close()
 
 	// Session
 	sess, err := client.NewSession()
 	if err != nil {
-		log.Fatalf("Failed to create session %v", err)
+		log.Fatalf("Failed to create session: %v", err)
 	}
 	defer sess.Close()
 	r, err := sess.StdoutPipe()
