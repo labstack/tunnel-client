@@ -28,7 +28,7 @@ var (
 		Long:  ``,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			t := &tunnel.Tunnel{
+			c := &tunnel.Config{
 				Host:       "labstack.me:22",
 				RemoteHost: "0.0.0.0",
 				RemotePort: 80,
@@ -41,40 +41,40 @@ var (
 					log.Fatalf("Failed to find api key in the config")
 				}
 
-				// Find tunnel
+				// Find config
 				res, err := resty.R().
 					SetAuthToken(key).
 					SetHeader("Content-Type", "application/json").
-					SetResult(t).
+					SetResult(c).
 					SetError(e).
 					SetHeader("User-Agent", "labstack/tunnel").
-					Get(fmt.Sprintf("https://api.labstack.com/tunnels/%s", name))
+					Get(fmt.Sprintf("https://api.labstack.com/tunnel/configs/%s", name))
 				if err != nil {
 					log.Fatalf("Failed to the find tunnel: %v", err)
 				} else if res.StatusCode() != http.StatusOK {
 					log.Fatalf("Failed to the find tunnel: %s", e.Message)
 				}
-				if t.Protocol == "tcp" {
+				if c.Protocol == "tcp" {
 					tcp = true
-				} else if t.Protocol == "tls" {
+				} else if c.Protocol == "tls" {
 					tls = true
 				}
 
 				user = fmt.Sprintf("key=%s,name=%s", key, name)
-				t.Host += ":22"
+				c.Host += ":22"
 			} else if tls {
 				user = "tls=true"
 			}
 
-			t.User = user
-			t.TargetHost, t.TargetPort, err = util.SplitHostPort(args[0])
+			c.User = user
+			c.TargetHost, c.TargetPort, err = util.SplitHostPort(args[0])
 			if err != nil {
 				log.Fatalf("Failed to parse target address: %v", err)
 			}
 			if tcp || tls {
-				t.RemotePort = 0
+				c.RemotePort = 0
 			}
-			t.Create()
+			tunnel.Create(c)
 		},
 	}
 )
@@ -91,7 +91,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "config file (default is $HOME/.tunnel.yaml)")
-	rootCmd.PersistentFlags().StringVarP(&name, "name", "n", "", "tunnel name from the dashboard")
+	rootCmd.PersistentFlags().StringVarP(&name, "name", "n", "", "config name from the dashboard")
 	rootCmd.PersistentFlags().BoolVarP(&tcp, "tcp", "", false, "tcp tunnel")
 	rootCmd.PersistentFlags().BoolVarP(&tls, "tls", "", false, "tls tunnel")
 }

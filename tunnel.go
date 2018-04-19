@@ -15,7 +15,7 @@ import (
 )
 
 type (
-	Tunnel struct {
+	Config struct {
 		Protocol   string `json:"protocol"`
 		Subdomain  string `json:"subdomain"`
 		Domain     string `json:"domain"`
@@ -39,19 +39,19 @@ var (
 	hostBytes = []byte("ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDoSLknvlFrFzroOlh1cqvcIFelHO+Wvj1UZ/p3J9bgsJGiKfh3DmBqEw1DOEwpHJz4zuV375TyjGuHuGZ4I4xztnwauhFplfEvriVHQkIDs6UnGwJVr15XUQX04r0i6mLbJs5KqIZTZuZ9ZGOj7ZWnaA7C07nPHGrERKV2Fm67rPvT6/qFikdWUbCt7KshbzdwwfxUohmv+NI7vw2X6vPU8pDaNEY7vS3YgwD/WlvQx+WDF2+iwLVW8OWWjFuQso6Eg1BSLygfPNhAHoiOWjDkijc8U9LYkUn7qsDCnvJxCoTTNmdECukeHfzrUjTSw72KZoM5KCRV78Wrctai1Qn6yRQz9BOSguxewLfzHtnT43/MLdwFXirJ/Ajquve2NAtYmyGCq5HcvpDAyi7lQ0nFBnrWv5zU3YxrISIpjovVyJjfPx8SCRlYZwVeUq6N2yAxCzJxbElZPtaTSoXBIFtoas2NXnCWPgenBa/2bbLQqfgbN8VQ9RaUISKNuYDIn4+eO72+RxF9THzZeV17pnhTVK88XU4asHot1gXwAt4vEhSjdUBC9KUIkfukI6F4JFxtvuO96octRahdV1Qg0vF+D0+SPy2HxqjgZWgPE2Xh/NmuIXwbE0wkymR2wrgj8Hd4C92keo2NBRh9dD7D2negnVYaYsC+3k/si5HNuCHnHQ== tunnel@labstack.com")
 )
 
-func (t *Tunnel) Create() {
+func Create(c *Config) {
 	hostKey, _, _, _, err := ssh.ParseAuthorizedKey(hostBytes)
 	if err != nil {
 		log.Fatalf("Failed to parse host key: %v", err)
 	}
 	config := &ssh.ClientConfig{
-		User: t.User,
+		User: c.User,
 		Auth: []ssh.AuthMethod{
 			ssh.Password("password"),
 		},
 		HostKeyCallback: ssh.FixedHostKey(hostKey),
 		BannerCallback: func(message string) error {
-			if !t.HideBanner {
+			if !c.HideBanner {
 				fmt.Print(message)
 			}
 			return nil
@@ -72,8 +72,8 @@ func (t *Tunnel) Create() {
 		}
 		connReq := &http.Request{
 			Method: "CONNECT",
-			URL:    &url.URL{Path: t.Host},
-			Host:   t.Host,
+			URL:    &url.URL{Path: c.Host},
+			Host:   c.Host,
 			Header: make(http.Header),
 		}
 		if proxyURL.User != nil {
@@ -88,13 +88,13 @@ func (t *Tunnel) Create() {
 		}
 		defer resp.Body.Close()
 
-		c, chans, reqs, err := ssh.NewClientConn(tcp, t.Host, config)
+		conn, chans, reqs, err := ssh.NewClientConn(tcp, c.Host, config)
 		if err != nil {
 			log.Fatalf("Cannot open new session: %v", err)
 		}
-		client = ssh.NewClient(c, chans, reqs)
+		client = ssh.NewClient(conn, chans, reqs)
 	} else {
-		client, err = ssh.Dial("tcp", t.Host, config)
+		client, err = ssh.Dial("tcp", c.Host, config)
 	}
 	if err != nil {
 		log.Fatalf("Failed to connect: %v", err)
@@ -120,7 +120,7 @@ func (t *Tunnel) Create() {
 	}()
 
 	// Remote listener
-	ln, err := client.Listen("tcp", fmt.Sprintf("%s:%d", t.RemoteHost, t.RemotePort))
+	ln, err := client.Listen("tcp", fmt.Sprintf("%s:%d", c.RemoteHost, c.RemotePort))
 	if err != nil {
 		log.Fatalf("Failed to listen on remote host %v", err)
 	}
@@ -138,7 +138,7 @@ func (t *Tunnel) Create() {
 			defer in.Close()
 
 			// Target connection
-			out, err := net.Dial("tcp", fmt.Sprintf("%s:%d", t.TargetHost, t.TargetPort))
+			out, err := net.Dial("tcp", fmt.Sprintf("%s:%d", c.TargetHost, c.TargetPort))
 			if err != nil {
 				log.Printf("Failed to connect to target %v", err)
 				return
