@@ -114,7 +114,10 @@ func Create(c *Config) {
 	br := bufio.NewReader(r)
 	go func() {
 		for {
-			line, _, _ := br.ReadLine()
+			line, _, err := br.ReadLine()
+			if err != nil {
+				log.Fatalf("Failed to read: %v", err)
+			}
 			fmt.Printf("%s\n", line)
 		}
 	}()
@@ -122,7 +125,7 @@ func Create(c *Config) {
 	// Remote listener
 	ln, err := client.Listen("tcp", fmt.Sprintf("%s:%d", c.RemoteHost, c.RemotePort))
 	if err != nil {
-		log.Fatalf("Failed to listen on remote host %v", err)
+		log.Fatalf("Failed to listen on remote host: %v", err)
 	}
 	defer ln.Close()
 
@@ -130,7 +133,7 @@ func Create(c *Config) {
 		// Handle inbound connection
 		in, err := ln.Accept()
 		if err != nil {
-			log.Printf("Failed to accept connection %v", err)
+			log.Printf("Failed to accept connection: %v", err)
 			return
 		}
 
@@ -140,7 +143,7 @@ func Create(c *Config) {
 			// Target connection
 			out, err := net.Dial("tcp", fmt.Sprintf("%s:%d", c.TargetHost, c.TargetPort))
 			if err != nil {
-				log.Printf("Failed to connect to target %v", err)
+				log.Printf("Failed to connect to target: %v", err)
 				return
 			}
 			defer out.Close()
@@ -157,7 +160,7 @@ func Create(c *Config) {
 			// Handle error
 			err = <-errCh
 			if err != nil && err != io.EOF {
-				log.Printf("Failed to copy %v", err)
+				log.Printf("Failed to copy: %v", err)
 			}
 		}(in)
 	}
