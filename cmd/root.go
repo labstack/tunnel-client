@@ -113,7 +113,5 @@ func initConfig() {
 		viper.SetConfigName(".tunnel")
 	}
 	viper.AutomaticEnv() // Read in environment variables that match
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Failed to read config: %v", err)
-	}
+	viper.ReadInConfig()
 }
