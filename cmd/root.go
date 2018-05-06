@@ -10,6 +10,8 @@ import (
 	"github.com/labstack/tunnel"
 	"github.com/labstack/tunnel/util"
 
+	"time"
+
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -24,7 +26,7 @@ var (
 	user       string
 	rootCmd    = &cobra.Command{
 		Use:   "tunnel",
-		Short: "Tunnel lets you expose local servers to the internet securely",
+		Short: "Tunnel lets you expose local servers to internet securely",
 		Long:  ``,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -32,13 +34,14 @@ var (
 				Host:       "labstack.me:22",
 				RemoteHost: "0.0.0.0",
 				RemotePort: 80,
+				Channel:    make(chan int),
 			}
 			e := new(tunnel.Error)
 
 			if name != "" {
 				key := viper.GetString("api_key")
 				if key == "" {
-					log.Fatalf("Failed to find api key in the config")
+					log.Fatalf("failed to find api key in the config")
 				}
 
 				// Find config
@@ -50,9 +53,9 @@ var (
 					SetHeader("User-Agent", "labstack/tunnel").
 					Get(fmt.Sprintf("https://api.labstack.com/tunnel/configs/%s", name))
 				if err != nil {
-					log.Fatalf("Failed to the find tunnel: %v", err)
+					log.Fatalf("failed to the find tunnel: %v", err)
 				} else if res.StatusCode() != http.StatusOK {
-					log.Fatalf("Failed to the find tunnel: %s", e.Message)
+					log.Fatalf("failed to the find tunnel: %s", e.Message)
 				}
 				if c.Protocol == "tcp" {
 					tcp = true
@@ -69,12 +72,19 @@ var (
 			c.User = user
 			c.TargetHost, c.TargetPort, err = util.SplitHostPort(args[0])
 			if err != nil {
-				log.Fatalf("Failed to parse target address: %v", err)
+				log.Fatalf("failed to parse target address: %v", err)
 			}
 			if tcp || tls {
 				c.RemotePort = 0
 			}
-			tunnel.Create(c)
+		CREATE:
+			go tunnel.Create(c)
+			event := <-c.Channel
+			if event == tunnel.EventReconnect {
+				log.Info("trying to reconnect")
+				time.Sleep(1 * time.Second)
+				goto CREATE
+			}
 		},
 	}
 )
@@ -105,7 +115,7 @@ func initConfig() {
 		// Find home directory
 		home, err := homedir.Dir()
 		if err != nil {
-			log.Fatalf("Failed to find the home directory: %v", err)
+			log.Fatalf("failed to find the home directory: %v", err)
 		}
 
 		// Search config in home directory with name ".tunnel" (without extension)
