@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/go-resty/resty"
 	"github.com/labstack/gommon/log"
@@ -100,7 +101,7 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "config file (default is $HOME/.tunnel.yaml)")
+	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "config file (default is $HOME/tunnel/config.yaml)")
 	rootCmd.PersistentFlags().StringVarP(&name, "name", "n", "", "config name from the dashboard")
 	rootCmd.PersistentFlags().BoolVarP(&tcp, "tcp", "", false, "tcp tunnel")
 	rootCmd.PersistentFlags().BoolVarP(&tls, "tls", "", false, "tls tunnel")
@@ -112,15 +113,22 @@ func initConfig() {
 		// Use config file from the flag
 		viper.SetConfigFile(configFile)
 	} else {
-		// Find home directory
-		home, err := homedir.Dir()
+		// Create directories
+		dir, err := homedir.Dir()
 		if err != nil {
 			log.Fatalf("failed to find the home directory: %v", err)
 		}
+		root := filepath.Join(dir, ".tunnel")
+		if err = os.MkdirAll(filepath.Join(root, "pid"), 0755); err != nil {
+			log.Fatalf("failed to create pid directory: %v", err)
+		}
+		if err = os.MkdirAll(filepath.Join(root, "log"), 0755); err != nil {
+			log.Fatalf("failed to create log directory: %v", err)
+		}
 
-		// Search config in home directory with name ".tunnel" (without extension)
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".tunnel")
+		// Search config in home directory with name "config" (without extension)
+		viper.AddConfigPath(root)
+		viper.SetConfigName("config")
 	}
 	viper.AutomaticEnv() // Read in environment variables that match
 	viper.ReadInConfig()

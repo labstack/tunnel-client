@@ -12,7 +12,7 @@ var (
 		Short: "Print the version of Tunnel",
 		// Long:  ``,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("0.2.8")
+			fmt.Println("0.2.9")
 		},
 	}
 )
