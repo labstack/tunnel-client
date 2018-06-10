@@ -31,7 +31,7 @@ var (
 		Long:  ``,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			c := &tunnel.Config{
+			c := &tunnel.Configuration{
 				Host:       "labstack.me:22",
 				RemoteHost: "0.0.0.0",
 				RemotePort: 80,
@@ -52,7 +52,7 @@ var (
 					SetResult(c).
 					SetError(e).
 					SetHeader("User-Agent", "labstack/tunnel").
-					Get(fmt.Sprintf("https://api.labstack.com/tunnel/configs/%s", name))
+					Get(fmt.Sprintf("https://api.labstack.com/tunnel/configurations/%s", name))
 				if err != nil {
 					log.Fatalf("failed to the find tunnel: %v", err)
 				} else if res.StatusCode() != http.StatusOK {
@@ -102,7 +102,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "config file (default is $HOME/tunnel/config.yaml)")
-	rootCmd.PersistentFlags().StringVarP(&name, "name", "n", "", "config name from the dashboard")
+	rootCmd.PersistentFlags().StringVarP(&name, "name", "n", "", "configuration name from the dashboard")
 	rootCmd.PersistentFlags().BoolVarP(&tcp, "tcp", "", false, "tcp tunnel")
 	rootCmd.PersistentFlags().BoolVarP(&tls, "tls", "", false, "tls tunnel")
 }
@@ -119,8 +119,8 @@ func initConfig() {
 			log.Fatalf("failed to find the home directory: %v", err)
 		}
 		root := filepath.Join(dir, ".tunnel")
-		if err = os.MkdirAll(filepath.Join(root, "pid"), 0755); err != nil {
-			log.Fatalf("failed to create pid directory: %v", err)
+		if err = os.MkdirAll(filepath.Join(root, "run"), 0755); err != nil {
+			log.Fatalf("failed to create run directory: %v", err)
 		}
 		if err = os.MkdirAll(filepath.Join(root, "log"), 0755); err != nil {
 			log.Fatalf("failed to create log directory: %v", err)
