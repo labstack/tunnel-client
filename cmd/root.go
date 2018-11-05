@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/go-resty/resty"
+	"gopkg.in/resty.v1"
 	"github.com/labstack/gommon/log"
-	"github.com/labstack/tunnel"
-	"github.com/labstack/tunnel/util"
+	"github.com/labstack/tunnel-client"
+	"github.com/labstack/tunnel-client/util"
 
 	"time"
 
