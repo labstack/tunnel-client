@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/labstack/gommon/log"
-	"tunnel/client/cmd"
+	"github.com/labstack/tunnel-client/cmd"
 )
 
 func main() {
