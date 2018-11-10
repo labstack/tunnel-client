@@ -1,6 +1,7 @@
 module github.com/labstack/tunnel-client
 
 require (
+	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/labstack/gommon v0.2.7
 	github.com/mattn/go-colorable v0.0.9 // indirect
 	github.com/mattn/go-isatty v0.0.4 // indirect
