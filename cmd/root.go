@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"gopkg.in/resty.v1"
 	"github.com/labstack/gommon/log"
 	"github.com/labstack/tunnel-client"
 	"github.com/labstack/tunnel-client/util"
+	"gopkg.in/resty.v1"
 
 	"time"
 
@@ -27,7 +27,7 @@ var (
 	user       string
 	rootCmd    = &cobra.Command{
 		Use:   "tunnel",
-		Short: "Tunnel lets you expose local servers to internet securely",
+		Short: "Tunnel lets you expose local servers to the internet securely",
 		Long:  ``,
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -52,7 +52,7 @@ var (
 					SetResult(c).
 					SetError(e).
 					SetHeader("User-Agent", "labstack/tunnel").
-					Get(fmt.Sprintf("https://api.labstack.com/tunnel/configurations/%s", name))
+					Get(fmt.Sprintf("https://tunnel.labstack.com/api/v1/configurations/%s", name))
 				if err != nil {
 					log.Fatalf("failed to the find tunnel: %v", err)
 				} else if res.StatusCode() != http.StatusOK {

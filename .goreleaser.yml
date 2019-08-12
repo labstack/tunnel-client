@@ -21,7 +21,7 @@ nfpm:
     amd64: 64-bit
     386: 32-bit
   vendor: "LabStack"
-  homepage: "https://labstack.com/docs/diy/tunnel"
+  homepage: "https://tunnel.labstack.com"
   maintainer: "Vishal Rana <vr@labstack.com>"
   description: "Tunnel lets you expose local servers to internet securely - ngrok alternative, compatible with SSH client."
   license: "MIT"
