@@ -25,7 +25,11 @@ func startDaemon() {
 		}
 	}
 	if start {
-		c := exec.Command("tunnel", "daemon")
+		e, err := os.Executable()
+		if err != nil {
+			log.Fatal(err)
+		}
+		c := exec.Command(e, "daemon")
 		c.SysProcAttr = &syscall.SysProcAttr{
 			Setpgid: true,
 			Pgid:    0,
