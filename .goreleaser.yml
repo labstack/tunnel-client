@@ -1,18 +1,23 @@
-build:
-  main: cmd/tunnel/main.go
-  goos:
-    - darwin
-    - linux
-    - windows
-  goarch:
-    - amd64
-    - 386
-    - arm
-    - arm64
-  goarm:
-    - 6
-    - 7
-
+project_name: tunnel
+before:
+  hooks:
+    - go mod download
+builds:
+  -
+    main: cmd/tunnel/main.go
+    goarch:
+      - 386
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - 6
+      - 7
+archives:
+  - replacements:
+      darwin: macos
+      amd64: 64-bit
+      386: 32-bit
 nfpm:
   formats:
     - deb
@@ -23,24 +28,18 @@ nfpm:
   vendor: "LabStack"
   homepage: "https://tunnel.labstack.com"
   maintainer: "Vishal Rana <vr@labstack.com>"
-  description: "Tunnel lets you expose local servers to internet securely - ngrok alternative, compatible with SSH client."
+  description: "Tunnel lets you expose local servers to the internet securely - ngrok alternative, compatible with SSH
+  client."
   license: "MIT"
-  
-archive:
-  format: tgz
-  format_overrides:
-    - goos: windows
-      format: zip
-  replacements:
-    amd64: 64-bit
-    386: 32-bit
-    darwin: macos
-  files:
-    - README.md
-    - LICENSE
-
 checksum:
-  name_template: "{{ .ProjectName }}_checksum.txt"
-    
+  name_template: "checksum.txt"
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
 release:
   draft: true
