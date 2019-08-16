@@ -3,8 +3,11 @@ before:
   hooks:
     - go mod download
 builds:
-  -
-    main: cmd/tunnel/main.go
+  - main: cmd/tunnel/main.go
+    goos:
+      - darwin
+      - linux
+      - windows
     goarch:
       - 386
       - amd64
@@ -18,6 +21,9 @@ archives:
       darwin: macos
       amd64: 64-bit
       386: 32-bit
+    format_overrides:
+      - goos: windows
+        format: zip
 nfpm:
   formats:
     - deb
