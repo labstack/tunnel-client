@@ -41,6 +41,9 @@ func initialize() {
 		log.Fatalf("failed to find the home directory: %v", err)
 	}
 	root := filepath.Join(dir, ".tunnel")
+	if err = os.MkdirAll(root, 0755); err != nil {
+		log.Fatalf("failed to create root directory: %v", err)
+	}
 
 	// Add to viper
 	viper.Set("root", root)
