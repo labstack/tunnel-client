@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+
 	"github.com/labstack/gommon/log"
 	"github.com/labstack/tunnel-client/daemon"
 	"github.com/spf13/cobra"
@@ -21,6 +22,7 @@ var stopCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
+		defer c.Close()
 		rep := new(daemon.StopReply)
 		err = c.Call("Daemon.Stop", daemon.StopRequest{
 			Name: args[0],

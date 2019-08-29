@@ -116,7 +116,7 @@ func newTunnel(req *StartRequest) (t *Tunnel, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse target address: %v", err)
 	}
-	if t.Protocol != ProtocolHTTP {
+	if t.Protocol != ProtocolHTTPS {
 		t.RemotePort = 0
 	}
 	tunnels[t.Name] = t

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+
 	"github.com/labstack/gommon/log"
 	"github.com/labstack/tunnel-client/daemon"
 
@@ -24,6 +25,7 @@ var startCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
+		defer c.Close()
 		rep := new(daemon.StartReply)
 		s.Start()
 		err = c.Call("Daemon.Start", &daemon.StartRequest{
@@ -42,5 +44,5 @@ var startCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(startCmd)
 	startCmd.PersistentFlags().StringVarP(&name, "configuration", "c", "", "configuration name from the console")
-	startCmd.PersistentFlags().StringVarP(&protocol, "protocol", "p", daemon.ProtocolHTTP, "tunnel protocol (http, tcp, tls)")
+	startCmd.PersistentFlags().StringVarP(&protocol, "protocol", "p", daemon.ProtocolHTTPS, "tunnel protocol (https, tcp, tls)")
 }
