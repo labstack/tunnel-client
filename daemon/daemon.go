@@ -89,8 +89,6 @@ func (d *Daemon) RM(req *RMRequest, rep *RMReply) error {
 func Start() {
 	d := new(Daemon)
 	rpc.Register(d)
-	// syscall.Unlink("/tmp/rpc.sock")
-	// l, e := net.Listen("unix", "/tmp/rpc.sock")
 	l, e := net.Listen("tcp", "127.0.0.1:0")
 	if e != nil {
 		log.Fatal(e)

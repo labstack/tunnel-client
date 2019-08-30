@@ -29,10 +29,10 @@ type (
 		reconnectWait time.Duration
 		Name          string   `json:"name"`
 		Protocol      Protocol `json:"protocol"`
-		Subdomain     string   `json:"subdomain"`
+		Prefix        string   `json:"prefix"`
 		Domain        string   `json:"domain"`
 		Port          int      `json:"port"`
-		Host          string   `json:"host"`
+		Hostname      string   `json:"hostname"`
 		User          string
 		RemoteHost    string
 		RemotePort    int
@@ -79,7 +79,7 @@ func newTunnel(req *StartRequest) (t *Tunnel, err error) {
 		acceptChan:    make(chan net.Conn),
 		reconnectChan: make(chan error),
 		stopChan:      make(chan bool),
-		Host:          "labstack.me:22",
+		Hostname:      "labstack.me:22",
 		Protocol:      req.Protocol,
 		RemoteHost:    "0.0.0.0",
 		RemotePort:    80,
@@ -104,7 +104,7 @@ func newTunnel(req *StartRequest) (t *Tunnel, err error) {
 			return nil, fmt.Errorf("failed to the find tunnel: %s", e.Message)
 		}
 		t.User = fmt.Sprintf("key=%s,name=%s", key, req.Name)
-		t.Host += ":22"
+		t.Hostname += ":22"
 	} else {
 		t.Name = random.String(3, random.Lowercase)
 		if req.Protocol == ProtocolTLS {
@@ -166,8 +166,8 @@ RECONNECT:
 		}
 		connReq := &http.Request{
 			Method: "CONNECT",
-			URL:    &url.URL{Path: t.Host},
-			Host:   t.Host,
+			URL:    &url.URL{Path: t.Hostname},
+			Host:   t.Hostname,
 			Header: make(http.Header),
 		}
 		if proxyURL.User != nil {
@@ -182,13 +182,13 @@ RECONNECT:
 		}
 		defer resp.Body.Close()
 
-		conn, chans, reqs, err := ssh.NewClientConn(tcp, t.Host, config)
+		conn, chans, reqs, err := ssh.NewClientConn(tcp, t.Hostname, config)
 		if err != nil {
 			log.Fatalf("cannot open new session: %v", err)
 		}
 		c = ssh.NewClient(conn, chans, reqs)
 	} else {
-		c, err = ssh.Dial("tcp", t.Host, config)
+		c, err = ssh.Dial("tcp", t.Hostname, config)
 	}
 	if err != nil {
 		t.Status = StatusReconnecting
