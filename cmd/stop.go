@@ -2,33 +2,39 @@ package cmd
 
 import (
 	"errors"
-
-	"github.com/labstack/gommon/log"
+	"fmt"
 	"github.com/labstack/tunnel-client/daemon"
+
 	"github.com/spf13/cobra"
 )
 
 var stopCmd = &cobra.Command{
-	Use:   "stop",
-	Short: "Stop tunnel by name",
+	Use:   "stop [id]",
+	Short: "Stop connection by id",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
-			return errors.New("requires a tunnel name")
+			return errors.New("requires a connection id")
 		}
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		startDaemon()
 		c, err := getClient()
 		if err != nil {
-			log.Fatal(err)
-		}
-		defer c.Close()
-		rep := new(daemon.StopReply)
-		err = c.Call("Daemon.Stop", daemon.StopRequest{
-			Name: args[0],
-		}, rep)
-		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
+		} else {
+			defer c.Close()
+			rep := new(daemon.StopReply)
+			s.Start()
+			defer s.Stop()
+			err = c.Call("Server.Stop", daemon.StopRequest{
+				ID: args[0],
+			}, rep)
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				psRPC()
+			}
 		}
 	},
 }

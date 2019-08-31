@@ -2,47 +2,47 @@ package cmd
 
 import (
 	"errors"
-
-	"github.com/labstack/gommon/log"
+	"fmt"
 	"github.com/labstack/tunnel-client/daemon"
 
 	"github.com/spf13/cobra"
 )
 
-var name string
-var protocol string
 var startCmd = &cobra.Command{
-	Use:   "start [address]",
-	Short: "Start tunnel from the target address",
+	Use:   "start [id]",
+	Short: "Start an existing connection by id",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
-			return errors.New("requires a target address argument")
+			return errors.New("requires a connection id")
 		}
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		startDaemon()
 		c, err := getClient()
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
+		} else {
+			defer c.Close()
+			rep := new(daemon.StartReply)
+			s.Start()
+			defer s.Stop()
+			err = c.Call("Server.Start", &daemon.StartRequest{
+				ID: args[0],
+			}, rep)
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				psRPC()
+			}
 		}
-		defer c.Close()
-		rep := new(daemon.StartReply)
-		s.Start()
-		err = c.Call("Daemon.Start", &daemon.StartRequest{
-			Name:     name,
-			Address:  args[0],
-			Protocol: daemon.Protocol(protocol),
-		}, rep)
-		if err != nil {
-			log.Fatal(err)
-		}
-		s.Stop()
-		psRPC()
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(startCmd)
-	startCmd.PersistentFlags().StringVarP(&name, "configuration", "c", "", "configuration name from the console")
-	startCmd.PersistentFlags().StringVarP(&protocol, "protocol", "p", daemon.ProtocolHTTPS, "tunnel protocol (https, tcp, tls)")
+	startCmd.PersistentFlags().StringVarP(&configuration, "configuration", "c", "",
+		"configuration name from the console")
+	startCmd.PersistentFlags().StringVarP(&protocol, "protocol", "p", daemon.ProtocolHTTPS,
+		"connection protocol (https, tcp, tls)")
 }

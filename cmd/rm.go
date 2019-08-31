@@ -2,37 +2,46 @@ package cmd
 
 import (
 	"errors"
-
-	"github.com/labstack/gommon/log"
+	"fmt"
 	"github.com/labstack/tunnel-client/daemon"
+
 	"github.com/spf13/cobra"
 )
 
+var force bool
 var rmCmd = &cobra.Command{
-	Use:   "rm",
-	Short: "Remove tunnel by name",
+	Use:   "rm [id]",
+	Short: "Remove connection by id",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
-			return errors.New("requires a tunnel name")
+			return errors.New("requires a connection id")
 		}
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		startDaemon()
 		c, err := getClient()
 		if err != nil {
-			log.Fatal(err)
-		}
-		defer c.Close()
-		rep := new(daemon.RMReply)
-		err = c.Call("Daemon.RM", daemon.RMRequest{
-			Name: args[0],
-		}, rep)
-		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
+		} else {
+			defer c.Close()
+			rep := new(daemon.RMReply)
+			s.Start()
+			defer s.Stop()
+			err = c.Call("Server.RM", daemon.RMRequest{
+				ID:    args[0],
+				Force: force,
+			}, rep)
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				psRPC()
+			}
 		}
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(rmCmd)
+	rmCmd.PersistentFlags().BoolVarP(&force, "force", "f", false, "force remove a connection")
 }

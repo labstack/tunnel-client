@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"github.com/labstack/gommon/log"
 	"github.com/labstack/tunnel-client/daemon"
 	"github.com/mitchellh/go-ps"
@@ -28,7 +29,7 @@ func startDaemon() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		c := exec.Command(e, "daemon")
+		c := exec.Command(e, "daemon", "start")
 		c.SysProcAttr = sysProcAttr
 		f, err := os.OpenFile(viper.GetString("log_file"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
@@ -48,9 +49,29 @@ func startDaemon() {
 
 var daemonCmd = &cobra.Command{
 	Use:   "daemon",
-	Short: "Start the tunnel daemon. It is automatically started as soon as the first command is executed.",
+	Short: "Start/stop the tunnel daemon. It is automatically started as soon as the first command is executed.",
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errors.New("requires an argument (start/stop)")
+		}
+		return nil
+	},
 	Run: func(cmd *cobra.Command, args []string) {
-		daemon.Start()
+		if args[0] == "start" {
+			daemon.Start()
+		} else if args[0] == "stop" {
+			c, err := getClient()
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer c.Close()
+			req := new(daemon.StopDaemonRequest)
+			rep := new(daemon.StopDaemonReply)
+			err = c.Call("Server.StopDaemon", req, rep)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
 	},
 }
 

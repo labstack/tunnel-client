@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 
@@ -17,6 +16,7 @@ var cfgFile string
 var rootCmd = &cobra.Command{
 	Use:   "tunnel",
 	Short: "Tunnel lets you expose local servers to the internet securely",
+	Long:  "Signup @ https://tunnel.labstack.com to get an api key and get started",
 	Run: func(cmd *cobra.Command, args []string) {
 		cmd.Help()
 	},
@@ -31,33 +31,38 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initialize)
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 func initialize() {
 	// Create directories
 	dir, err := homedir.Dir()
 	if err != nil {
-		log.Fatalf("failed to find the home directory: %v", err)
+		fmt.Printf("failed to find the home directory: %v", err)
 	}
 	root := filepath.Join(dir, ".tunnel")
 	if err = os.MkdirAll(root, 0755); err != nil {
-		log.Fatalf("failed to create root directory: %v", err)
+		fmt.Printf("failed to create root directory: %v", err)
+	}
+	if _, err := os.OpenFile(filepath.Join(root, "config.yaml"), os.O_RDONLY|os.O_CREATE, 0644); err != nil {
+		fmt.Printf("failed to create config file: %v", err)
 	}
 
-	// Add to viper
+	// Config
+	viper.AutomaticEnv()
 	viper.Set("root", root)
 	viper.Set("log_file", filepath.Join(root, "daemon.log"))
 	viper.Set("daemon_pid", filepath.Join(root, "daemon.pid"))
 	viper.Set("daemon_addr", filepath.Join(root, "daemon.addr"))
-
-	// Search config in home directory with name ".config" (without extension).
+	viper.Set("host", "labstack.me:22")
+	viper.Set("api_url", "https://tunnel.labstack.com/api/v1")
+	if dev := viper.GetString("DC") == "dev"; dev {
+		viper.Set("host", "localhost:2200")
+		viper.Set("api_url", "http://tunnel.labstack.d/api/v1")
+		viper.SetConfigName("config.dev")
+	} else {
+		viper.SetConfigName("config")
+	}
 	viper.AddConfigPath(root)
-	viper.SetConfigName("config")
-
-	// Load config
-	viper.AutomaticEnv()
 	viper.ReadInConfig()
-
-	startDaemon()
+	viper.WatchConfig()
 }
