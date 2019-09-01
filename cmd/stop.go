@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"errors"
-	"fmt"
+	"github.com/labstack/gommon/log"
 	"github.com/labstack/tunnel-client/daemon"
 
 	"github.com/spf13/cobra"
@@ -21,21 +21,19 @@ var stopCmd = &cobra.Command{
 		startDaemon()
 		c, err := getClient()
 		if err != nil {
-			fmt.Println(err)
-		} else {
-			defer c.Close()
-			rep := new(daemon.StopReply)
-			s.Start()
-			defer s.Stop()
-			err = c.Call("Server.Stop", daemon.StopRequest{
-				ID: args[0],
-			}, rep)
-			if err != nil {
-				fmt.Println(err)
-			} else {
-				psRPC()
-			}
+			log.Fatal(err)
 		}
+		defer c.Close()
+		rep := new(daemon.StopReply)
+		s.Start()
+		defer s.Stop()
+		err = c.Call("Server.Stop", daemon.StopRequest{
+			ID: args[0],
+		}, rep)
+		if err != nil {
+			log.Fatal(err)
+		}
+		psRPC()
 	},
 }
 

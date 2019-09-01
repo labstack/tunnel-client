@@ -15,7 +15,13 @@ import (
 	"github.com/spf13/viper"
 )
 
+func checkKey() {
+}
+
 func startDaemon() {
+	if viper.GetString("api_key") == "" {
+		log.Fatal("to use tunnel you need an api key (https://tunnel.labstack.com) in $HOME/.tunnel/config.yaml")
+	}
 	start := true
 	d, err := ioutil.ReadFile(viper.GetString("daemon_pid"))
 	if err == nil {
