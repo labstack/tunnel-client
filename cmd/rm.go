@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"errors"
-	"github.com/labstack/gommon/log"
 	"github.com/labstack/tunnel-client/daemon"
 
 	"github.com/spf13/cobra"
@@ -22,7 +21,7 @@ var rmCmd = &cobra.Command{
 		startDaemon()
 		c, err := getClient()
 		if err != nil {
-			log.Fatal(err)
+			exit(err)
 		}
 		defer c.Close()
 		rep := new(daemon.RMReply)
@@ -33,7 +32,7 @@ var rmCmd = &cobra.Command{
 			Force: force,
 		}, rep)
 		if err != nil {
-			log.Fatal(err)
+			exit(err)
 		}
 		psRPC()
 	},

@@ -110,14 +110,13 @@ RECONNECT:
 	if c.Status == ConnectionStatusReconnecting {
 		c.retries++
 		if c.retries > 5 {
+			c.Status = ConnectionStatusStatusOffline
+			c.update()
 			c.errorChan <- fmt.Errorf("failed to reconnect connection id=%s", c.ID)
 			return
 		}
 		time.Sleep(c.retries * c.retries * time.Second)
-		if err := c.update(); err != nil {
-			c.errorChan <- err
-			return
-		}
+		c.update()
 		log.Warnf("reconnecting connection: id=%s, retry=%d", c.ID, c.retries)
 	}
 	hostKey, _, _, _, err := ssh.ParseAuthorizedKey(hostBytes)
@@ -205,10 +204,7 @@ RECONNECT:
 			// TODO: Use proper message format with type, header & body (e.g. User)
 			c.RemoteURI = string(line)
 			c.Status = ConnectionStatusStatusOnline
-			if err := c.create(); err != nil {
-				c.errorChan <- err
-				return
-			}
+			c.create()
 			c.retries = 0
 			c.startChan <- true
 			c.server.Connections[c.ID] = c
@@ -228,9 +224,7 @@ RECONNECT:
 		defer sess.Close()
 		defer sc.Close()
 		c.Status = ConnectionStatusStatusOffline
-		if err := c.update(); err != nil {
-			log.Error(err)
-		}
+		c.update()
 	}()
 	go func() {
 		in, err := l.Accept()
@@ -286,9 +280,10 @@ func (c *Connection) stop() {
 	}
 }
 
-func (c *Connection) create() error {
+func (c *Connection) create() {
 	if c.ID != "" {
-		return c.update()
+		c.update()
+		return
 	}
 	e := new(Error)
 	res, err := c.server.resty.R().
@@ -297,14 +292,13 @@ func (c *Connection) create() error {
 		SetError(e).
 		Post("/connections")
 	if err != nil {
-		return err
+		log.Error(err)
 	} else if res.IsError() {
-		return fmt.Errorf("failed to create a connection: %s", e.Message)
+		log.Errorf("failed to create a connection: %s", e.Message)
 	}
-	return nil
 }
 
-func (c *Connection) update() (err error) {
+func (c *Connection) update() {
 	if c.ID == "" {
 		return
 	}
@@ -315,11 +309,10 @@ func (c *Connection) update() (err error) {
 		SetError(e).
 		Put("/connections/" + c.ID)
 	if err != nil {
-		return
+		log.Error(err)
 	} else if res.IsError() {
-		return fmt.Errorf("failed to update the connection: id=%s, error=%s", c.ID, e.Message)
+		log.Errorf("failed to update the connection: id=%s, error=%s", c.ID, e.Message)
 	}
-	return
 }
 
 func (c *Connection) delete() error {

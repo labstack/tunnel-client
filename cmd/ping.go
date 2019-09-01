@@ -4,7 +4,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"net"
-	"os"
 	"time"
 )
 
@@ -15,7 +14,7 @@ var pingCmd = &cobra.Command{
 		host := viper.GetString("host")
 		conn, err := net.DialTimeout("tcp", host, 5*time.Second)
 		if err != nil {
-			os.Exit(1)
+			exit(err)
 		}
 		defer conn.Close()
 	},

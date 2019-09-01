@@ -3,7 +3,6 @@ package cmd
 import (
 	"github.com/hako/durafmt"
 	"github.com/jedib0t/go-pretty/table"
-	"github.com/labstack/gommon/log"
 	"github.com/labstack/tunnel-client/daemon"
 	"github.com/spf13/cobra"
 	"os"
@@ -22,7 +21,7 @@ func psRPC() {
 	startDaemon()
 	c, err := getClient()
 	if err != nil {
-		log.Fatal(err)
+		exit(err)
 	}
 	defer c.Close()
 	req := new(daemon.PSRequest)
@@ -30,7 +29,7 @@ func psRPC() {
 	s.Start()
 	err = c.Call("Server.PS", req, rep)
 	if err != nil {
-		log.Fatal(err)
+		exit(err)
 	}
 	s.Stop()
 	tbl := table.NewWriter()

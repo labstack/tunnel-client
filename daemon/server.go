@@ -85,18 +85,20 @@ func (s *Server) Connect(req *ConnectRequest, rep *ConnectReply) (err error) {
 }
 
 func (s *Server) Start(req *StartRequest, rep *StartReply) (err error) {
-	c := s.Connections[req.ID]
-	go c.start()
-	select {
-	case <-c.startChan:
-	case err = <-c.errorChan:
+	if c, ok := s.Connections[req.ID]; ok {
+		go c.start()
+		select {
+		case <-c.startChan:
+		case err = <-c.errorChan:
+		}
 	}
 	return
 }
 
 func (s *Server) Stop(req *StopRequest, rep *StopReply) error {
-	c := s.Connections[req.ID]
-	c.stop()
+	if c, ok := s.Connections[req.ID]; ok {
+		c.stop()
+	}
 	return nil
 }
 
@@ -108,12 +110,15 @@ func (s *Server) PS(req *PSRequest, rep *PSReply) error {
 }
 
 func (s *Server) RM(req *RMRequest, rep *RMReply) error {
-	c := s.Connections[req.ID]
-	if c.Status == ConnectionStatusStatusOffline || c.Status == ConnectionStatusStatusOnline && req.Force {
-		c.stop()
-		return c.delete()
+	if c, ok := s.Connections[req.ID]; ok {
+		if c.Status == ConnectionStatusStatusOffline ||
+			c.Status == ConnectionStatusStatusOnline && req.Force {
+			c.stop()
+			return c.delete()
+		}
+		return fmt.Errorf("cannot remove an online connection %s, to force remove use `-f`", c.ID)
 	}
-	return fmt.Errorf("cannot remove an online connection %s, to force remove use `-f`", c.ID)
+	return nil
 }
 
 func Start() {

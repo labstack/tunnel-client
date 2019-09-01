@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"errors"
-	"github.com/labstack/gommon/log"
 	"github.com/labstack/tunnel-client/daemon"
 	"github.com/mitchellh/go-ps"
 	"io/ioutil"
@@ -20,7 +19,7 @@ func checkKey() {
 
 func startDaemon() {
 	if viper.GetString("api_key") == "" {
-		log.Fatal("to use tunnel you need an api key (https://tunnel.labstack.com) in $HOME/.tunnel/config.yaml")
+		exit("To use tunnel you need an api key (https://tunnel.labstack.com) in $HOME/.tunnel/config.yaml")
 	}
 	start := true
 	d, err := ioutil.ReadFile(viper.GetString("daemon_pid"))
@@ -33,21 +32,21 @@ func startDaemon() {
 	if start {
 		e, err := os.Executable()
 		if err != nil {
-			log.Fatal(err)
+			exit(err)
 		}
 		c := exec.Command(e, "daemon", "start")
 		c.SysProcAttr = sysProcAttr
 		f, err := os.OpenFile(viper.GetString("log_file"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
-			log.Fatal(err)
+			exit(err)
 		}
 		c.Stdout = f
 		c.Stderr = f
 		if err := c.Start(); err != nil {
-			log.Fatal(err)
+			exit(err)
 		}
 		if err := ioutil.WriteFile(viper.GetString("daemon_pid"), []byte(strconv.Itoa(c.Process.Pid)), 0644); err != nil {
-			log.Fatal(err)
+			exit(err)
 		}
 		time.Sleep(time.Second) // Let the daemon start
 	}
@@ -68,14 +67,14 @@ var daemonCmd = &cobra.Command{
 		} else if args[0] == "stop" {
 			c, err := getClient()
 			if err != nil {
-				log.Fatal(err)
+				exit(err)
 			}
 			defer c.Close()
 			req := new(daemon.StopDaemonRequest)
 			rep := new(daemon.StopDaemonReply)
 			err = c.Call("Server.StopDaemon", req, rep)
 			if err != nil {
-				log.Fatal(err)
+				exit(err)
 			}
 		}
 	},
