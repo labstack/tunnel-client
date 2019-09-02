@@ -1,5 +1,5 @@
 IMAGE = labstack/tunnel
-VERSION = 0.4.1
+VERSION = 0.4.2
 
 publish:
 	git tag v$(VERSION)

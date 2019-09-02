@@ -91,7 +91,7 @@ func (s *Server) newConnection(req *ConnectRequest) (c *Connection, err error) {
 		} else if res.IsError() {
 			return nil, fmt.Errorf("failed to the find the configuration: %s", e.Message)
 		}
-		c.User = fmt.Sprintf("key=%s,name=%s", key, req.Configuration)
+		c.User = fmt.Sprintf("key=%s,config=%s", key, req.Configuration)
 		c.Host = net.JoinHostPort(c.Configuration.Hostname, "22")
 	} else {
 		if req.Protocol == ProtocolTLS {
