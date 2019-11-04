@@ -12,6 +12,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.5 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/go-ps v0.0.0-20190716172923-621e5597135b
+	github.com/pkg/errors v0.8.0
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/viper v1.5.0
 	golang.org/x/crypto v0.0.0-20191029031824-8986dd9e96cf

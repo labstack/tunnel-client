@@ -4,6 +4,7 @@ import (
   "bufio"
   "fmt"
   "github.com/labstack/gommon/log"
+  "github.com/pkg/errors"
   "github.com/spf13/viper"
   "io"
   "net"
@@ -33,7 +34,9 @@ type (
     stopChan      chan bool
     errorChan     chan error
     retries       time.Duration
+    ID            string `json:"id"`
     Name          string `json:"name"`
+    Random        bool   `json:"random"`
     User          string
     Host          string
     TargetAddress string `json:"target_address"`
@@ -100,7 +103,7 @@ func (s *Server) newConnection(req *ConnectRequest) (c *Connection, err error) {
   if c.Configuration.Protocol != ProtocolHTTPS {
     c.RemotePort = 0
   }
-  if err = c.create(); err != nil {
+  if err = c.save(); err != nil {
     return
   }
   c.User += ",name=" + c.Name
@@ -285,28 +288,41 @@ func (c *Connection) stop() {
   }
 }
 
-func (c *Connection) create() error {
-  e := new(Error)
-  _, err := c.server.resty.R().
-    SetBody(c).
-    SetResult(c).
-    SetError(e).
-    Post("/connections")
-  return err
+func (c *Connection) save() error {
+  if c.ID == "" {
+    return c.create()
+  }
+  return c.update()
 }
 
-func (c *Connection) update() {
+func (c *Connection) create() error {
   e := new(Error)
   res, err := c.server.resty.R().
     SetBody(c).
     SetResult(c).
     SetError(e).
-    Put("/connections/" + c.Name)
+    Post("/connections")
   if err != nil {
-    log.Error(err)
+    return err
   } else if res.IsError() {
-    log.Errorf("failed to update the connection: name=%s, error=%s", c.Name, e.Message)
+    return errors.Errorf("failed to create a connection: error=%s", e.Message)
   }
+  return nil
+}
+
+func (c *Connection) update() error {
+  e := new(Error)
+  res, err := c.server.resty.R().
+    SetBody(c).
+    SetResult(c).
+    SetError(e).
+    Put("/connections/" + c.ID)
+  if err != nil {
+    return err
+  } else if res.IsError() {
+    return errors.Errorf("failed to update the connection: name=%s, error=%s", c.Name, e.Message)
+  }
+  return nil
 }
 
 func (c *Connection) delete() error {
@@ -314,7 +330,7 @@ func (c *Connection) delete() error {
   e := new(Error)
   res, err := c.server.resty.R().
     SetError(e).
-    Delete("/connections/" + c.Name)
+    Delete("/connections/" + c.ID)
   if err != nil {
     return err
   } else if res.IsError() {

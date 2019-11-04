@@ -1,5 +1,5 @@
 IMAGE = labstack/tunnel
-VERSION = 0.5.0
+VERSION = 0.5.1
 
 publish:
 	git tag v$(VERSION)
@@ -8,6 +8,5 @@ publish:
 	docker build -t $(IMAGE):$(VERSION) -t $(IMAGE) .
 	docker push $(IMAGE):$(VERSION)
 	docker push $(IMAGE):latest
-	rm tunnel
 
 .PHONY: publish 
