@@ -9,11 +9,11 @@ import (
 
 var force bool
 var rmCmd = &cobra.Command{
-	Use:   "rm [id]",
-	Short: "Remove connection by id",
+	Use:   "rm [name]",
+	Short: "Remove connection by name",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
-			return errors.New("requires a connection id")
+			return errors.New("requires a connection name")
 		}
 		return nil
 	},
@@ -28,7 +28,7 @@ var rmCmd = &cobra.Command{
 		s.Start()
 		defer s.Stop()
 		err = c.Call("Server.RM", daemon.RMRequest{
-			ID:    args[0],
+			Name:    args[0],
 			Force: force,
 		}, rep)
 		if err != nil {

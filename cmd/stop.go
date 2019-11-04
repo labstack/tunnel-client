@@ -8,11 +8,11 @@ import (
 )
 
 var stopCmd = &cobra.Command{
-	Use:   "stop [id]",
-	Short: "Stop connection by id",
+	Use:   "stop [name]",
+	Short: "Stop connection by name",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
-			return errors.New("requires a connection id")
+			return errors.New("requires a connection name")
 		}
 		return nil
 	},
@@ -27,7 +27,7 @@ var stopCmd = &cobra.Command{
 		s.Start()
 		defer s.Stop()
 		err = c.Call("Server.Stop", daemon.StopRequest{
-			ID: args[0],
+			Name: args[0],
 		}, rep)
 		if err != nil {
 			exit(err)

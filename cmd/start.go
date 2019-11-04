@@ -8,11 +8,11 @@ import (
 )
 
 var startCmd = &cobra.Command{
-	Use:   "start [id]",
-	Short: "Start an existing connection by id",
+	Use:   "start [name]",
+	Short: "Start an existing connection by name",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
-			return errors.New("requires a connection id")
+			return errors.New("requires a connection name")
 		}
 		return nil
 	},
@@ -27,7 +27,7 @@ var startCmd = &cobra.Command{
 		s.Start()
 		defer s.Stop()
 		err = c.Call("Server.Start", &daemon.StartRequest{
-			ID: args[0],
+			Name: args[0],
 		}, rep)
 		if err != nil {
 			exit(err)
@@ -38,8 +38,4 @@ var startCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(startCmd)
-	startCmd.PersistentFlags().StringVarP(&configuration, "configuration", "c", "",
-		"configuration name from the console")
-	startCmd.PersistentFlags().StringVarP(&protocol, "protocol", "p", daemon.ProtocolHTTPS,
-		"connection protocol (https, tcp, tls)")
 }
