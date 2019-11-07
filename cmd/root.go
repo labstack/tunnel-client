@@ -4,8 +4,10 @@ import (
   "errors"
   "fmt"
   "github.com/labstack/tunnel-client/daemon"
+  "net"
   "os"
   "path/filepath"
+  "strings"
 
   "github.com/spf13/cobra"
 
@@ -34,9 +36,14 @@ var rootCmd = &cobra.Command{
     defer c.Close()
     rep := new(daemon.ConnectReply)
     s.Start()
+    addr := args[0]
+    _, _, err = net.SplitHostPort(addr)
+    if err != nil && strings.Contains(err.Error(), "missing port") {
+      addr = ":" + addr
+    }
     err = c.Call("Server.Connect", &daemon.ConnectRequest{
       Name:     name,
-      Address:  args[0],
+      Address:  addr,
       Protocol: daemon.Protocol(protocol),
     }, rep)
     if err != nil {

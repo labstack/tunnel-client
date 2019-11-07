@@ -214,7 +214,8 @@ RECONNECT:
   // Remote listener
   l, err := sc.Listen("tcp", fmt.Sprintf("%s:%d", c.RemoteHost, c.RemotePort))
   if err != nil {
-    log.Fatalf("failed to listen on remote host: %v", err)
+    log.Errorf("failed to listen on remote host: %v", err)
+    return
   }
   // Note: Don't close the listener as it prevents closing the underlying connection
 
