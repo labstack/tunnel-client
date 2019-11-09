@@ -1,15 +1,20 @@
 package daemon
 
 import (
+  "errors"
   "fmt"
   "github.com/fsnotify/fsnotify"
   "github.com/labstack/gommon/log"
   "github.com/spf13/viper"
+  "golang.org/x/sync/errgroup"
   "gopkg.in/resty.v1"
   "io/ioutil"
   "net"
   "net/rpc"
   "os"
+  "os/signal"
+  "strconv"
+  "syscall"
 )
 
 type (
@@ -27,20 +32,6 @@ type (
   }
 
   ConnectReply struct {
-  }
-
-  StartRequest struct {
-    Name string
-  }
-
-  StartReply struct {
-  }
-
-  StopRequest struct {
-    Name string
-  }
-
-  StopReply struct {
   }
 
   PSRequest struct {
@@ -76,33 +67,12 @@ func (s *Server) Connect(req *ConnectRequest, rep *ConnectReply) (err error) {
   if err != nil {
     return
   }
-  go c.start()
-  select {
-  case <-c.startChan:
-  case err = <-c.errorChan:
-  }
+  go c.connect()
+  <-c.startChan
   return
 }
 
-func (s *Server) Start(req *StartRequest, rep *StartReply) (err error) {
-  if c, ok := s.Connections[req.Name]; ok {
-    go c.start()
-    select {
-    case <-c.startChan:
-    case err = <-c.errorChan:
-    }
-  }
-  return
-}
-
-func (s *Server) Stop(req *StopRequest, rep *StopReply) error {
-  if c, ok := s.Connections[req.Name]; ok {
-    c.stop()
-  }
-  return nil
-}
-
-func (s *Server) PS(req *PSRequest, rep *PSReply) error {
+func (s *Server) PS(req *PSRequest, rep *PSReply) (err error) {
   for _, c := range s.Connections {
     rep.Connections = append(rep.Connections, c)
   }
@@ -111,14 +81,22 @@ func (s *Server) PS(req *PSRequest, rep *PSReply) error {
 
 func (s *Server) RM(req *RMRequest, rep *RMReply) error {
   if c, ok := s.Connections[req.Name]; ok {
-    if c.Status == ConnectionStatusStatusOffline ||
-      c.Status == ConnectionStatusStatusOnline && req.Force {
-      c.stop()
-      return c.delete()
-    }
-    return fmt.Errorf("cannot remove an online connection %s, to force remove use `-f`", c.Name)
+    c.stop()
+    return c.delete()
   }
   return nil
+}
+
+func (s *Server) stopConnections() error {
+  g := new(errgroup.Group)
+  for _, c := range s.Connections {
+    c := c
+    g.Go(func() error {
+      c.stop()
+      return c.delete()
+    })
+  }
+  return g.Wait()
 }
 
 func Start() {
@@ -136,6 +114,23 @@ func Start() {
     Connections: map[string]*Connection{},
   }
   rpc.Register(s)
+
+  // Shutdown hook
+  c := make(chan os.Signal)
+  signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+  go func() {
+    <-c
+    if err := s.stopConnections(); err != nil {
+      log.Error("failed stopping connections: %v", err)
+    }
+  }()
+
+  // Cleanup
+  if err := s.deleteAll(); err != nil {
+    log.Error(err)
+  }
+
+  // Listen
   l, e := net.Listen("tcp", "127.0.0.1:0")
   if e != nil {
     log.Fatal(e)
@@ -150,20 +145,54 @@ func Start() {
 
 func (s *Server) StopDaemon(req *StopDaemonRequest, rep *StopDaemonReply) (err error) {
   log.Warn("stopping daemon")
-  for _, c := range s.Connections {
-    go func(c *Connection) {
-      c.stop()
-      if err = c.delete(); err != nil {
-        return
-      }
-    }(c)
+  if err = s.stopConnections(); err != nil {
+    return
   }
-  pid := viper.GetInt("daemon_pid")
+  d, _ := ioutil.ReadFile(viper.GetString("daemon_pid"))
+  pid, err := strconv.Atoi(string(d))
+  if err != nil {
+    return
+  }
   p, err := os.FindProcess(pid)
   if err != nil {
     return
   }
-  p.Kill()
-  os.Remove(viper.GetString("daemon_pid"))
+  if err = p.Kill(); err != nil {
+    return
+  }
+  if err = os.Remove(viper.GetString("daemon_pid")); err != nil {
+    return
+  }
   return os.Remove(viper.GetString("daemon_addr"))
+}
+
+func (s *Server) findConnection(c *Connection) (err error) {
+  e := new(Error)
+  res, err := s.resty.R().
+    SetResult(c).
+    SetError(e).
+    Get("/connections/" + c.ID)
+  if err != nil {
+    return
+  }
+  if res.IsError() {
+    return errors.New(e.Message)
+  }
+  s.Connections[c.Name] = c
+  return
+}
+
+func (s *Server) deleteAll() (err error) {
+  log.Warnf("removing all connections")
+  e := new(Error)
+  res, err := s.resty.R().
+    SetError(e).
+    Delete("/connections")
+  if err != nil {
+    return
+  }
+  if res.IsError() {
+    return fmt.Errorf("failed to delete all connections")
+  }
+  return
 }

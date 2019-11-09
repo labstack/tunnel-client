@@ -18,6 +18,7 @@ var rmCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		s.Start()
 		startDaemon()
 		c, err := getClient()
 		if err != nil {
@@ -25,7 +26,6 @@ var rmCmd = &cobra.Command{
 		}
 		defer c.Close()
 		rep := new(daemon.RMReply)
-		s.Start()
 		defer s.Stop()
 		err = c.Call("Server.RM", daemon.RMRequest{
 			Name:    args[0],
@@ -40,5 +40,4 @@ var rmCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(rmCmd)
-	rmCmd.PersistentFlags().BoolVarP(&force, "force", "f", false, "force remove a connection")
 }

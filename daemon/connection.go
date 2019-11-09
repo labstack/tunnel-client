@@ -2,9 +2,10 @@ package daemon
 
 import (
   "bufio"
+  "encoding/json"
   "fmt"
   "github.com/labstack/gommon/log"
-  "github.com/pkg/errors"
+  "github.com/matoous/go-nanoid"
   "github.com/spf13/viper"
   "io"
   "net"
@@ -17,6 +18,16 @@ import (
 )
 
 type (
+  Header struct {
+    ID        string `json:"id"`
+    Key       string `json:"key"`
+    Name      string `json:"name"`
+    Target    string `json:"target"`
+    TLS       bool   `json:"tls"`
+    Started   bool   `json:"started"`
+    Reconnect bool   `json:"reconnect"`
+  }
+
   Configuration struct {
     Name     string   `json:"name"`
     Protocol Protocol `json:"protocol"`
@@ -32,20 +43,19 @@ type (
     acceptChan    chan net.Conn
     reconnectChan chan error
     stopChan      chan bool
-    errorChan     chan error
     retries       time.Duration
+    Header        *Header
     ID            string `json:"id"`
     Name          string `json:"name"`
     Random        bool   `json:"random"`
-    User          string
-    Host          string
+    Hostname      string `json:"hostname"`
+    Port          int    `json:"port"`
     TargetAddress string `json:"target_address"`
     RemoteHost    string
     RemotePort    int
     RemoteURI     string           `json:"remote_uri"`
     Status        ConnectionStatus `json:"status"`
-    CreatedAt     time.Time        `json:"created_at"`
-    UpdatedAt     time.Time        `json:"updated_at"`
+    ConnectedAt   time.Time        `json:"connected_at"`
     Configuration *Configuration   `json:"-"`
   }
 
@@ -60,27 +70,41 @@ type (
 var (
   hostBytes = []byte("ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDoSLknvlFrFzroOlh1cqvcIFelHO+Wvj1UZ/p3J9bgsJGiKfh3DmBqEw1DOEwpHJz4zuV375TyjGuHuGZ4I4xztnwauhFplfEvriVHQkIDs6UnGwJVr15XUQX04r0i6mLbJs5KqIZTZuZ9ZGOj7ZWnaA7C07nPHGrERKV2Fm67rPvT6/qFikdWUbCt7KshbzdwwfxUohmv+NI7vw2X6vPU8pDaNEY7vS3YgwD/WlvQx+WDF2+iwLVW8OWWjFuQso6Eg1BSLygfPNhAHoiOWjDkijc8U9LYkUn7qsDCnvJxCoTTNmdECukeHfzrUjTSw72KZoM5KCRV78Wrctai1Qn6yRQz9BOSguxewLfzHtnT43/MLdwFXirJ/Ajquve2NAtYmyGCq5HcvpDAyi7lQ0nFBnrWv5zU3YxrISIpjovVyJjfPx8SCRlYZwVeUq6N2yAxCzJxbElZPtaTSoXBIFtoas2NXnCWPgenBa/2bbLQqfgbN8VQ9RaUISKNuYDIn4+eO72+RxF9THzZeV17pnhTVK88XU4asHot1gXwAt4vEhSjdUBC9KUIkfukI6F4JFxtvuO96octRahdV1Qg0vF+D0+SPy2HxqjgZWgPE2Xh/NmuIXwbE0wkymR2wrgj8Hd4C92keo2NBRh9dD7D2negnVYaYsC+3k/si5HNuCHnHQ== tunnel@labstack.com")
 
-  ConnectionStatusStatusOnline  = ConnectionStatus("online")
-  ConnectionStatusStatusOffline = ConnectionStatus("offline")
-  ConnectionStatusReconnecting  = ConnectionStatus("reconnecting")
+  ConnectionStatusStatusOnline = ConnectionStatus("online")
+  ConnectionStatusReconnecting = ConnectionStatus("reconnecting")
 )
 
+func (c *Connection) Host() (host string) {
+  h := viper.GetString("hostname")
+  if c.Configuration.Hostname != "" {
+    h = c.Configuration.Hostname
+  } else if c.Hostname != "" {
+    h = c.Hostname
+  }
+  return net.JoinHostPort(h, "22222")
+}
+
 func (s *Server) newConnection(req *ConnectRequest) (c *Connection, err error) {
+  id, _ := gonanoid.Nanoid()
   c = &Connection{
     server:        s,
     startChan:     make(chan bool),
     acceptChan:    make(chan net.Conn),
     reconnectChan: make(chan error),
     stopChan:      make(chan bool),
-    errorChan:     make(chan error),
-    Host:          viper.GetString("host"),
+    Header: &Header{
+      ID:     id,
+      Key:    viper.GetString("api_key"),
+      Target: req.Address,
+    },
+    ID:            id,
+    TargetAddress: req.Address,
     RemoteHost:    "0.0.0.0",
     RemotePort:    80,
     Configuration: &Configuration{
       Protocol: req.Protocol,
     },
   }
-  c.User = "key=" + viper.GetString("api_key")
   e := new(Error)
   if req.Name != "" {
     res, err := s.resty.R().
@@ -93,43 +117,43 @@ func (s *Server) newConnection(req *ConnectRequest) (c *Connection, err error) {
       return nil, fmt.Errorf("failed to the find the configuration: %s", e.Message)
     }
     c.Name = req.Name
-    c.Host = net.JoinHostPort(c.Configuration.Hostname, "22222")
   } else {
     if req.Protocol == ProtocolTLS {
-      c.User += ",tls=true"
+      c.Header.TLS = true
     }
   }
-  c.TargetAddress = req.Address
   if c.Configuration.Protocol != ProtocolHTTPS {
     c.RemotePort = 0
   }
-  if err = c.save(); err != nil {
-    return
-  }
-  c.User += ",name=" + c.Name
+  c.Header.Name = c.Name
   return
 }
 
-func (c *Connection) start() {
+func (c *Connection) connect() {
 RECONNECT:
-  if c.Status == ConnectionStatusReconnecting {
+  if c.Header.Reconnect {
     c.retries++
     if c.retries > 5 {
-      c.Status = ConnectionStatusStatusOffline
-      c.update()
-      c.errorChan <- fmt.Errorf("failed to reconnect connection name=%s", c.Name)
+      log.Errorf("failed to reconnect connection: %s", c.Name)
+      if err := c.delete(); err != nil {
+        log.Error(err)
+      }
       return
     }
     time.Sleep(c.retries * c.retries * time.Second)
-    c.update()
+    c.Status = ConnectionStatusReconnecting
+    if err := c.update(); err != nil {
+      log.Error(err)
+    }
     log.Warnf("reconnecting connection: name=%s, retry=%d", c.Name, c.retries)
   }
   hostKey, _, _, _, err := ssh.ParseAuthorizedKey(hostBytes)
   if err != nil {
     log.Fatalf("failed to parse host key: %v", err)
   }
+  user, _ := json.Marshal(c.Header)
   config := &ssh.ClientConfig{
-    User: c.User,
+    User: string(user),
     Auth: []ssh.AuthMethod{
       ssh.Password("password"),
     },
@@ -150,8 +174,8 @@ RECONNECT:
     }
     connReq := &http.Request{
       Method: "CONNECT",
-      URL:    &url.URL{Path: c.Host},
-      Host:   c.Host,
+      URL:    &url.URL{Path: c.Host()},
+      Host:   c.Host(),
       Header: make(http.Header),
     }
     if proxyURL.User != nil {
@@ -166,50 +190,19 @@ RECONNECT:
     }
     defer resp.Body.Close()
 
-    conn, chans, reqs, err := ssh.NewClientConn(tcp, c.Host, config)
+    conn, chans, reqs, err := ssh.NewClientConn(tcp, c.Host(), config)
     if err != nil {
       log.Fatalf("cannot open new session: %v", err)
     }
     sc = ssh.NewClient(conn, chans, reqs)
   } else {
-    sc, err = ssh.Dial("tcp", c.Host, config)
+    sc, err = ssh.Dial("tcp", c.Host(), config)
   }
   if err != nil {
     log.Error(err)
-    c.Status = ConnectionStatusReconnecting
+    c.Header.Reconnect = true
     goto RECONNECT
   }
-
-  // Session
-  sess, err := sc.NewSession()
-  if err != nil {
-    log.Fatalf("failed to create session: %v", err)
-  }
-  r, err := sess.StdoutPipe()
-  if err != nil {
-    log.Print(err)
-  }
-  br := bufio.NewReader(r)
-
-  go func() {
-    for {
-      line, _, err := br.ReadLine()
-      if err != nil {
-        if err == io.EOF {
-          return
-        } else {
-          log.Fatalf("failed to read: %v", err)
-        }
-      }
-      // TODO: Use proper message format with type, header & body (e.g. User)
-      c.RemoteURI = string(line)
-      c.Status = ConnectionStatusStatusOnline
-      c.retries = 0
-      c.startChan <- true
-      c.server.Connections[c.Name] = c
-      c.update()
-    }
-  }()
 
   // Remote listener
   l, err := sc.Listen("tcp", fmt.Sprintf("%s:%d", c.RemoteHost, c.RemotePort))
@@ -217,15 +210,22 @@ RECONNECT:
     log.Errorf("failed to listen on remote host: %v", err)
     return
   }
+  if err := c.server.findConnection(c); err != nil {
+    log.Error(err)
+    return
+  }
+  c.Header.Reconnect = false
+  c.retries = 0
+  if !c.Header.Started {
+    c.Header.Started = true
+    c.startChan <- true
+  }
   // Note: Don't close the listener as it prevents closing the underlying connection
 
   // Close
   defer func() {
-    log.Infof("closing connection %s", c.Name)
-    defer sess.Close()
+    log.Infof("closing connection: %s", c.Name)
     defer sc.Close()
-    c.Status = ConnectionStatusStatusOffline
-    c.update()
   }()
 
   // Accept connections
@@ -248,7 +248,6 @@ RECONNECT:
     case in := <-c.acceptChan:
       go c.handle(in)
     case err = <-c.reconnectChan:
-      log.Error(err)
       c.Status = ConnectionStatusReconnecting
       goto RECONNECT
     }
@@ -283,32 +282,8 @@ func (c *Connection) handle(in net.Conn) {
 }
 
 func (c *Connection) stop() {
-  if c.Status == ConnectionStatusStatusOnline {
-    log.Warnf("stopping connection %s", c.Name)
-    c.stopChan <- true
-  }
-}
-
-func (c *Connection) save() error {
-  if c.ID == "" {
-    return c.create()
-  }
-  return c.update()
-}
-
-func (c *Connection) create() error {
-  e := new(Error)
-  res, err := c.server.resty.R().
-    SetBody(c).
-    SetResult(c).
-    SetError(e).
-    Post("/connections")
-  if err != nil {
-    return err
-  } else if res.IsError() {
-    return errors.Errorf("failed to create a connection: error=%s", e.Message)
-  }
-  return nil
+  log.Warnf("stopping connection: %s", c.Name)
+  c.stopChan <- true
 }
 
 func (c *Connection) update() error {
@@ -320,23 +295,25 @@ func (c *Connection) update() error {
     Put("/connections/" + c.ID)
   if err != nil {
     return err
-  } else if res.IsError() {
-    return errors.Errorf("failed to update the connection: name=%s, error=%s", c.Name, e.Message)
+  }
+  if res.IsError() {
+    return fmt.Errorf("failed to update the connection: name=%s, error=%s", c.Name, e.Message)
   }
   return nil
 }
 
-func (c *Connection) delete() error {
-  log.Warnf("removing connection %s", c.Name)
+func (c *Connection) delete() (err error) {
+  log.Warnf("removing connection: %s", c.Name)
   e := new(Error)
   res, err := c.server.resty.R().
     SetError(e).
     Delete("/connections/" + c.ID)
   if err != nil {
-    return err
-  } else if res.IsError() {
+    return
+  }
+  if res.IsError() {
     return fmt.Errorf("failed to delete the connection: %s", e.Message)
   }
   delete(c.server.Connections, c.Name)
-  return nil
+  return
 }

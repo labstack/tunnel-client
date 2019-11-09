@@ -18,6 +18,7 @@ var psCmd = &cobra.Command{
 }
 
 func psRPC() {
+  s.Start()
   startDaemon()
   c, err := getClient()
   if err != nil {
@@ -26,7 +27,6 @@ func psRPC() {
   defer c.Close()
   req := new(daemon.PSRequest)
   rep := new(daemon.PSReply)
-  s.Start()
   err = c.Call("Server.PS", req, rep)
   if err != nil {
     exit(err)
@@ -37,8 +37,9 @@ func psRPC() {
   tbl.AppendHeader(table.Row{"Name", "Target Address", "Remote URI", "Status", "Uptime"})
   for _, c := range rep.Connections {
     uptime := "-"
-    if c.Status == daemon.ConnectionStatusStatusOnline {
-      uptime = durafmt.ParseShort(time.Since(c.UpdatedAt)).String()
+    since := time.Since(c.ConnectedAt)
+    if c.Status == daemon.ConnectionStatusStatusOnline && since > 0 {
+      uptime = durafmt.ParseShort(since).String()
     }
     tbl.AppendRow([]interface{}{c.Name, c.TargetAddress, c.RemoteURI, c.Status, uptime})
   }

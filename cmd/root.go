@@ -28,6 +28,7 @@ var rootCmd = &cobra.Command{
     return nil
   },
   Run: func(cmd *cobra.Command, args []string) {
+    s.Start()
     startDaemon()
     c, err := getClient()
     if err != nil {
@@ -35,7 +36,6 @@ var rootCmd = &cobra.Command{
     }
     defer c.Close()
     rep := new(daemon.ConnectReply)
-    s.Start()
     addr := args[0]
     _, _, err = net.SplitHostPort(addr)
     if err != nil && strings.Contains(err.Error(), "missing port") {
@@ -84,7 +84,7 @@ func initialize() {
   viper.Set("log_file", filepath.Join(root, "daemon.log"))
   viper.Set("daemon_pid", filepath.Join(root, "daemon.pid"))
   viper.Set("daemon_addr", filepath.Join(root, "daemon.addr"))
-  viper.Set("host", "labstack.me:22222")
+  viper.Set("hostname", "labstack.me")
   viper.Set("api_url", "https://tunnel.labstack.com/api/v1")
   if dev := viper.GetString("DC") == "dev"; dev {
     viper.Set("host", "labstack.d:22222")
