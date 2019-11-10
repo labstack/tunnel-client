@@ -125,9 +125,9 @@ func Start() {
   }()
 
   // Cleanup
-  if err := s.deleteAll(); err != nil {
-    log.Error(err)
-  }
+  // if err := s.deleteAll(); err != nil {
+  //   log.Error(err)
+  // }
 
   // Listen
   l, e := net.Listen("tcp", "127.0.0.1:0")
