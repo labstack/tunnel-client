@@ -11,7 +11,7 @@ var pingCmd = &cobra.Command{
 	Use:   "ping",
 	Short: "Ping remote host",
 	Run: func(cmd *cobra.Command, args []string) {
-		host := viper.GetString("host")
+		host := net.JoinHostPort(viper.GetString("hostname"), "22222")
 		conn, err := net.DialTimeout("tcp", host, 5*time.Second)
 		if err != nil {
 			exit(err)
