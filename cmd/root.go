@@ -4,12 +4,11 @@ import (
   "errors"
   "fmt"
   "github.com/labstack/tunnel-client/daemon"
+  "github.com/spf13/cobra"
   "net"
   "os"
   "path/filepath"
   "strings"
-
-  "github.com/spf13/cobra"
 
   "github.com/mitchellh/go-homedir"
   "github.com/spf13/viper"

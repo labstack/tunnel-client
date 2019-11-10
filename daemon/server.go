@@ -13,7 +13,6 @@ import (
   "net/rpc"
   "os"
   "os/signal"
-  "strconv"
   "syscall"
 )
 
@@ -145,25 +144,7 @@ func Start() {
 
 func (s *Server) StopDaemon(req *StopDaemonRequest, rep *StopDaemonReply) (err error) {
   log.Warn("stopping daemon")
-  if err = s.stopConnections(); err != nil {
-    return
-  }
-  d, _ := ioutil.ReadFile(viper.GetString("daemon_pid"))
-  pid, err := strconv.Atoi(string(d))
-  if err != nil {
-    return
-  }
-  p, err := os.FindProcess(pid)
-  if err != nil {
-    return
-  }
-  if err = p.Kill(); err != nil {
-    return
-  }
-  if err = os.Remove(viper.GetString("daemon_pid")); err != nil {
-    return
-  }
-  return os.Remove(viper.GetString("daemon_addr"))
+  return s.stopConnections()
 }
 
 func (s *Server) findConnection(c *Connection) (err error) {

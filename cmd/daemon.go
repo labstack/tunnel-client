@@ -6,16 +6,12 @@ import (
   "github.com/radovskyb/watcher"
   "github.com/spf13/cobra"
   "github.com/spf13/viper"
-  "io"
   "io/ioutil"
   "os"
   "os/exec"
   "strconv"
   "time"
 )
-
-func checkKey() {
-}
 
 func startDaemon() {
   if viper.GetString("api_key") == "" {
@@ -85,9 +81,15 @@ var daemonCmd = &cobra.Command{
       req := new(daemon.StopDaemonRequest)
       rep := new(daemon.StopDaemonReply)
       err = c.Call("Server.StopDaemon", req, rep)
-      if err != nil && err != io.ErrUnexpectedEOF {
+      if err != nil {
         exit(err)
       }
+      defer os.Remove(viper.GetString("daemon_addr"))
+      defer os.Remove(viper.GetString("daemon_pid"))
+      d, _ := ioutil.ReadFile(viper.GetString("daemon_pid"))
+      pid, _ := strconv.Atoi(string(d))
+      p, _ := os.FindProcess(pid)
+      p.Kill()
     }
   },
 }
