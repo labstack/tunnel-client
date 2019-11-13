@@ -6,7 +6,6 @@ import (
   "github.com/fsnotify/fsnotify"
   "github.com/labstack/gommon/log"
   "github.com/spf13/viper"
-  "golang.org/x/sync/errgroup"
   "gopkg.in/resty.v1"
   "io/ioutil"
   "net"
@@ -47,12 +46,6 @@ type (
 
   RMReply struct {
   }
-
-  StopDaemonRequest struct {
-  }
-
-  StopDaemonReply struct {
-  }
 )
 
 const (
@@ -68,7 +61,7 @@ func (s *Server) Connect(req *ConnectRequest, rep *ConnectReply) (err error) {
   }
   go c.connect()
   <-c.startChan
-  return
+  return s.findConnection(c)
 }
 
 func (s *Server) PS(req *PSRequest, rep *PSReply) (err error) {
@@ -81,21 +74,8 @@ func (s *Server) PS(req *PSRequest, rep *PSReply) (err error) {
 func (s *Server) RM(req *RMRequest, rep *RMReply) error {
   if c, ok := s.Connections[req.Name]; ok {
     c.stop()
-    return c.delete()
   }
   return nil
-}
-
-func (s *Server) stopConnections() error {
-  g := new(errgroup.Group)
-  for _, c := range s.Connections {
-    c := c
-    g.Go(func() error {
-      c.stop()
-      return c.delete()
-    })
-  }
-  return g.Wait()
 }
 
 func Start() {
@@ -119,15 +99,8 @@ func Start() {
   signal.Notify(c, os.Interrupt, syscall.SIGTERM)
   go func() {
     <-c
-    if err := s.stopConnections(); err != nil {
-      log.Error("failed stopping connections: %v", err)
-    }
+    log.Warn("stopping daemon")
   }()
-
-  // Cleanup
-  // if err := s.deleteAll(); err != nil {
-  //   log.Error(err)
-  // }
 
   // Listen
   l, e := net.Listen("tcp", "127.0.0.1:0")
@@ -140,11 +113,6 @@ func Start() {
   }
   defer l.Close()
   rpc.Accept(l)
-}
-
-func (s *Server) StopDaemon(req *StopDaemonRequest, rep *StopDaemonReply) (err error) {
-  log.Warn("stopping daemon")
-  return s.stopConnections()
 }
 
 func (s *Server) findConnection(c *Connection) (err error) {

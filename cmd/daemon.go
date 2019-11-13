@@ -73,23 +73,12 @@ var daemonCmd = &cobra.Command{
     if args[0] == "start" {
       daemon.Start()
     } else if args[0] == "stop" {
-      c, err := getClient()
-      if err != nil {
-        exit(err)
-      }
-      defer c.Close()
-      req := new(daemon.StopDaemonRequest)
-      rep := new(daemon.StopDaemonReply)
-      err = c.Call("Server.StopDaemon", req, rep)
-      if err != nil {
-        exit(err)
-      }
       defer os.Remove(viper.GetString("daemon_addr"))
       defer os.Remove(viper.GetString("daemon_pid"))
       d, _ := ioutil.ReadFile(viper.GetString("daemon_pid"))
       pid, _ := strconv.Atoi(string(d))
       p, _ := os.FindProcess(pid)
-      p.Kill()
+      p.Signal(os.Interrupt)
     }
   },
 }

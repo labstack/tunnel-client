@@ -19,13 +19,11 @@ import (
 
 type (
   Header struct {
-    ID        string `json:"id"`
-    Key       string `json:"key"`
-    Name      string `json:"name"`
-    Target    string `json:"target"`
-    TLS       bool   `json:"tls"`
-    Started   bool   `json:"started"`
-    Reconnect bool   `json:"reconnect"`
+    ID     string `json:"id"`
+    Key    string `json:"key"`
+    Name   string `json:"name"`
+    Target string `json:"target"`
+    TLS    bool   `json:"tls"`
   }
 
   Configuration struct {
@@ -43,6 +41,7 @@ type (
     acceptChan    chan net.Conn
     reconnectChan chan error
     stopChan      chan bool
+    started       bool
     retries       time.Duration
     Header        *Header
     ID            string `json:"id"`
@@ -131,20 +130,13 @@ func (s *Server) newConnection(req *ConnectRequest) (c *Connection, err error) {
 
 func (c *Connection) connect() {
 RECONNECT:
-  if c.Header.Reconnect {
+  if c.Status == ConnectionStatusReconnecting {
     c.retries++
     if c.retries > 5 {
       log.Errorf("failed to reconnect connection: %s", c.Name)
-      if err := c.delete(); err != nil {
-        log.Error(err)
-      }
       return
     }
     time.Sleep(c.retries * c.retries * time.Second)
-    c.Status = ConnectionStatusReconnecting
-    if err := c.update(); err != nil {
-      log.Error(err)
-    }
     log.Warnf("reconnecting connection: name=%s, retry=%d", c.Name, c.retries)
   }
   hostKey, _, _, _, err := ssh.ParseAuthorizedKey(hostBytes)
@@ -200,7 +192,7 @@ RECONNECT:
   }
   if err != nil {
     log.Error(err)
-    c.Header.Reconnect = true
+    c.Status = ConnectionStatusReconnecting
     goto RECONNECT
   }
 
@@ -210,17 +202,13 @@ RECONNECT:
     log.Errorf("failed to listen on remote host: %v", err)
     return
   }
-  if err := c.server.findConnection(c); err != nil {
-    log.Error(err)
-    return
-  }
-  c.Header.Reconnect = false
+  // Note: Don't close the listener as it prevents closing the underlying connection
   c.retries = 0
-  if !c.Header.Started {
-    c.Header.Started = true
+  if !c.started {
+    c.started = true
     c.startChan <- true
   }
-  // Note: Don't close the listener as it prevents closing the underlying connection
+  log.Infof("connection %s is online", c.Name)
 
   // Close
   defer func() {
@@ -284,36 +272,4 @@ func (c *Connection) handle(in net.Conn) {
 func (c *Connection) stop() {
   log.Warnf("stopping connection: %s", c.Name)
   c.stopChan <- true
-}
-
-func (c *Connection) update() error {
-  e := new(Error)
-  res, err := c.server.resty.R().
-    SetBody(c).
-    SetResult(c).
-    SetError(e).
-    Put("/connections/" + c.ID)
-  if err != nil {
-    return err
-  }
-  if res.IsError() {
-    return fmt.Errorf("failed to update the connection: name=%s, error=%s", c.Name, e.Message)
-  }
-  return nil
-}
-
-func (c *Connection) delete() (err error) {
-  log.Warnf("removing connection: %s", c.Name)
-  e := new(Error)
-  res, err := c.server.resty.R().
-    SetError(e).
-    Delete("/connections/" + c.ID)
-  if err != nil {
-    return
-  }
-  if res.IsError() {
-    return fmt.Errorf("failed to delete the connection: %s", e.Message)
-  }
-  delete(c.server.Connections, c.Name)
-  return
 }
