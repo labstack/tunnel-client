@@ -60,8 +60,7 @@ func (s *Server) Connect(req *ConnectRequest, rep *ConnectReply) (err error) {
     return
   }
   go c.connect()
-  <-c.startChan
-  return s.findConnection(c)
+  return <-c.startChan
 }
 
 func (s *Server) PS(req *PSRequest, rep *PSReply) (err error) {
@@ -100,6 +99,7 @@ func Start() {
   go func() {
     <-c
     log.Warn("stopping daemon")
+    os.Exit(0)
   }()
 
   // Listen

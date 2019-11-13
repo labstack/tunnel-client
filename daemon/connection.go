@@ -37,7 +37,7 @@ type (
 
   Connection struct {
     server        *Server
-    startChan     chan bool
+    startChan     chan error
     acceptChan    chan net.Conn
     reconnectChan chan error
     stopChan      chan bool
@@ -87,7 +87,7 @@ func (s *Server) newConnection(req *ConnectRequest) (c *Connection, err error) {
   id, _ := gonanoid.Nanoid()
   c = &Connection{
     server:        s,
-    startChan:     make(chan bool),
+    startChan:     make(chan error),
     acceptChan:    make(chan net.Conn),
     reconnectChan: make(chan error),
     stopChan:      make(chan bool),
@@ -206,7 +206,7 @@ RECONNECT:
   c.retries = 0
   if !c.started {
     c.started = true
-    c.startChan <- true
+    c.startChan <- c.server.findConnection(c)
   }
   log.Infof("connection %s is online", c.Name)
 
