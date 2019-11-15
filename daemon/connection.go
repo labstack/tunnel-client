@@ -105,17 +105,17 @@ func (s *Server) newConnection(req *ConnectRequest) (c *Connection, err error) {
     },
   }
   e := new(Error)
-  if req.Name != "" {
+  if req.Configuration != "" {
     res, err := s.resty.R().
       SetResult(c.Configuration).
       SetError(e).
-      Get("/configurations/" + req.Name)
+      Get("/configurations/" + req.Configuration)
     if err != nil {
       return nil, fmt.Errorf("failed to the find the configuration: %v", err)
     } else if res.IsError() {
       return nil, fmt.Errorf("failed to the find the configuration: %s", e.Message)
     }
-    c.Name = req.Name
+    c.Name = req.Configuration
   } else {
     if req.Protocol == ProtocolTLS {
       c.Header.TLS = true

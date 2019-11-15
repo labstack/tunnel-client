@@ -14,7 +14,7 @@ import (
   "github.com/spf13/viper"
 )
 
-var name string
+var configuration string
 var protocol string
 var rootCmd = &cobra.Command{
   Use:   "tunnel [address]",
@@ -41,9 +41,9 @@ var rootCmd = &cobra.Command{
       addr = ":" + addr
     }
     err = c.Call("Server.Connect", &daemon.ConnectRequest{
-      Name:     name,
-      Address:  addr,
-      Protocol: daemon.Protocol(protocol),
+      Configuration: configuration,
+      Address:       addr,
+      Protocol:      daemon.Protocol(protocol),
     }, rep)
     if err != nil {
       exit(err)
@@ -98,7 +98,7 @@ func initialize() {
 }
 
 func init() {
-  rootCmd.PersistentFlags().StringVarP(&name, "name", "n", "",
+  rootCmd.PersistentFlags().StringVarP(&configuration, "configuration", "c", "",
     "configuration name from the console")
   rootCmd.PersistentFlags().StringVarP(&protocol, "protocol", "p", daemon.ProtocolHTTPS,
     "connection protocol (https, tcp, tls)")

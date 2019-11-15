@@ -24,9 +24,9 @@ type (
   Protocol string
 
   ConnectRequest struct {
-    Name     string
-    Address  string
-    Protocol Protocol
+    Configuration string
+    Address       string
+    Protocol      Protocol
   }
 
   ConnectReply struct {
