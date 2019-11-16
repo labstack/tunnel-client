@@ -2,7 +2,6 @@ package daemon
 
 import (
   "errors"
-  "fmt"
   "github.com/fsnotify/fsnotify"
   "github.com/labstack/gommon/log"
   "github.com/spf13/viper"
@@ -17,8 +16,7 @@ import (
 
 type (
   Server struct {
-    resty       *resty.Client
-    Connections map[string]*Connection
+    resty *resty.Client
   }
 
   Protocol string
@@ -54,6 +52,10 @@ const (
   ProtocolTLS   = "tls"
 )
 
+var (
+  connections = map[string]*Connection{}
+)
+
 func (s *Server) Connect(req *ConnectRequest, rep *ConnectReply) (err error) {
   c, err := s.newConnection(req)
   if err != nil {
@@ -64,15 +66,17 @@ func (s *Server) Connect(req *ConnectRequest, rep *ConnectReply) (err error) {
 }
 
 func (s *Server) PS(req *PSRequest, rep *PSReply) (err error) {
-  for _, c := range s.Connections {
+  for _, c := range connections {
     rep.Connections = append(rep.Connections, c)
   }
   return nil
 }
 
 func (s *Server) RM(req *RMRequest, rep *RMReply) error {
-  if c, ok := s.Connections[req.Name]; ok {
-    c.stop()
+  for _, c := range connections {
+    if c.Name == req.Name {
+      c.stop()
+    }
   }
   return nil
 }
@@ -87,10 +91,7 @@ func Start() {
   })
   r.SetHeader("Content-Type", "application/json")
   r.SetHeader("User-Agent", "tunnel/client")
-  s := &Server{
-    resty:       r,
-    Connections: map[string]*Connection{},
-  }
+  s := &Server{resty: r}
   rpc.Register(s)
 
   // Shutdown hook
@@ -126,22 +127,6 @@ func (s *Server) findConnection(c *Connection) (err error) {
   }
   if res.IsError() {
     return errors.New(e.Message)
-  }
-  s.Connections[c.Name] = c
-  return
-}
-
-func (s *Server) deleteAll() (err error) {
-  log.Warnf("removing all connections")
-  e := new(Error)
-  res, err := s.resty.R().
-    SetError(e).
-    Delete("/connections")
-  if err != nil {
-    return
-  }
-  if res.IsError() {
-    return fmt.Errorf("failed to delete all connections")
   }
   return
 }

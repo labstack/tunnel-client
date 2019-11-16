@@ -42,6 +42,7 @@ type (
     reconnectChan chan error
     stopChan      chan bool
     started       bool
+    stopped       bool
     retries       time.Duration
     Header        *Header
     ID            string `json:"id"`
@@ -91,11 +92,6 @@ func (s *Server) newConnection(req *ConnectRequest) (c *Connection, err error) {
     acceptChan:    make(chan net.Conn),
     reconnectChan: make(chan error),
     stopChan:      make(chan bool),
-    Header: &Header{
-      ID:     id,
-      Key:    viper.GetString("api_key"),
-      Target: req.Address,
-    },
     ID:            id,
     TargetAddress: req.Address,
     RemoteHost:    "0.0.0.0",
@@ -124,7 +120,12 @@ func (s *Server) newConnection(req *ConnectRequest) (c *Connection, err error) {
   if c.Configuration.Protocol != ProtocolHTTPS {
     c.RemotePort = 0
   }
-  c.Header.Name = c.Name
+  c.Header = &Header{
+    ID:     id,
+    Name:   c.Name,
+    Key:    viper.GetString("api_key"),
+    Target: req.Address,
+  }
   return
 }
 
@@ -199,20 +200,26 @@ RECONNECT:
   // Remote listener
   l, err := sc.Listen("tcp", fmt.Sprintf("%s:%d", c.RemoteHost, c.RemotePort))
   if err != nil {
-    log.Errorf("failed to listen on remote host: %v", err)
+    c.startChan <- fmt.Errorf("failed to listen on remote host: %v", err)
+    return
+  }
+  if err = c.server.findConnection(c); err != nil {
+    c.startChan <- fmt.Errorf("failed to find connection: %v", err)
     return
   }
   // Note: Don't close the listener as it prevents closing the underlying connection
   c.retries = 0
   if !c.started {
     c.started = true
-    c.startChan <- c.server.findConnection(c)
+    c.startChan <- nil
   }
+  connections[c.ID] = c
   log.Infof("connection %s is online", c.Name)
 
   // Close
   defer func() {
     log.Infof("closing connection: %s", c.Name)
+    delete(connections, c.ID);
     defer sc.Close()
   }()
 
@@ -220,7 +227,8 @@ RECONNECT:
   go func() {
     for {
       in, err := l.Accept()
-      if err != nil {
+      if err != nil && !c.stopped {
+        log.Error(err)
         c.reconnectChan <- err
         return
       }
@@ -232,6 +240,7 @@ RECONNECT:
   for {
     select {
     case <-c.stopChan:
+      c.stopped = true
       return
     case in := <-c.acceptChan:
       go c.handle(in)
