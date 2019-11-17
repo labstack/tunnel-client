@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	s = spinner.New(spinner.CharSets[32], 100*time.Millisecond)
+	s = spinner.New(spinner.CharSets[32], 50*time.Millisecond)
 )
 
 func exit(i interface{}) {

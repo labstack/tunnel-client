@@ -100,6 +100,6 @@ func initialize() {
 func init() {
   rootCmd.PersistentFlags().StringVarP(&configuration, "configuration", "c", "",
     "configuration name from the console")
-  rootCmd.PersistentFlags().StringVarP(&protocol, "protocol", "p", daemon.ProtocolHTTPS,
-    "connection protocol (https, tcp, tls)")
+  rootCmd.PersistentFlags().StringVarP(&protocol, "protocol", "p", daemon.ProtocolHTTP,
+    "connection protocol (http, tcp, tls)")
 }

@@ -47,9 +47,9 @@ type (
 )
 
 const (
-  ProtocolHTTPS = "https"
-  ProtocolTCP   = "tcp"
-  ProtocolTLS   = "tls"
+  ProtocolHTTP = "http"
+  ProtocolTCP  = "tcp"
+  ProtocolTLS  = "tls"
 )
 
 var (

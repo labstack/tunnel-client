@@ -117,7 +117,7 @@ func (s *Server) newConnection(req *ConnectRequest) (c *Connection, err error) {
       c.Header.TLS = true
     }
   }
-  if c.Configuration.Protocol != ProtocolHTTPS {
+  if c.Configuration.Protocol != ProtocolHTTP {
     c.RemotePort = 0
   }
   c.Header = &Header{
