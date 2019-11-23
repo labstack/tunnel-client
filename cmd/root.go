@@ -85,9 +85,13 @@ func initialize() {
   viper.Set("daemon_pid", filepath.Join(root, "daemon.pid"))
   viper.Set("daemon_addr", filepath.Join(root, "daemon.addr"))
   viper.Set("hostname", "labstack.me")
+  viper.Set("port", 22)
+  viper.Set("remote_port", 80)
   viper.Set("api_url", "https://tunnel.labstack.com/api/v1")
   if dev := viper.GetString("DC") == "dev"; dev {
-    viper.Set("host", "labstack.d:22")
+    viper.Set("hostname", "labstack.d")
+    viper.Set("port", 2200)
+    viper.Set("remote_port", 8000)
     viper.Set("api_url", "http://tunnel.labstack.d/api/v1")
     viper.SetConfigName("config.dev")
   } else {

@@ -19,7 +19,7 @@ import (
 )
 
 type (
-  Header struct {
+  User struct {
     ID            string   `json:"id"`
     Protocol      Protocol `json:"protocol"`
     Target        string   `json:"target"`
@@ -45,15 +45,14 @@ type (
     started       bool
     stopped       bool
     retries       time.Duration
-    Header        *Header
+    user          *User
     ID            string `json:"id"`
     Name          string `json:"name"`
     Random        bool   `json:"random"`
     Hostname      string `json:"hostname"`
     Port          int    `json:"port"`
     TargetAddress string `json:"target_address"`
-    RemoteHost    string
-    RemotePort    int
+    RemotePort    string
     RemoteURI     string           `json:"remote_uri"`
     Status        ConnectionStatus `json:"status"`
     ConnectedAt   time.Time        `json:"connected_at"`
@@ -82,7 +81,7 @@ func (c *Connection) Host() (host string) {
   } else if c.Hostname != "" {
     h = c.Hostname
   }
-  return net.JoinHostPort(h, "22")
+  return net.JoinHostPort(h, viper.GetString("port"))
 }
 
 func (s *Server) newConnection(req *ConnectRequest) (c *Connection, err error) {
@@ -95,8 +94,6 @@ func (s *Server) newConnection(req *ConnectRequest) (c *Connection, err error) {
     stopChan:      make(chan bool),
     ID:            id,
     TargetAddress: req.Address,
-    RemoteHost:    "0.0.0.0",
-    RemotePort:    80,
     Configuration: new(Configuration),
   }
 
@@ -115,11 +112,12 @@ func (s *Server) newConnection(req *ConnectRequest) (c *Connection, err error) {
     c.Name = req.Configuration
     req.Protocol = c.Configuration.Protocol
   }
+  c.RemotePort = viper.GetString("remote_port")
   if req.Protocol != ProtocolHTTP {
-    c.RemotePort = 0
+    c.RemotePort = "0"
   }
 
-  c.Header = &Header{
+  c.user = &User{
     ID:            id,
     Protocol:      req.Protocol,
     Target:        req.Address,
@@ -145,7 +143,7 @@ RECONNECT:
     c.startChan <- fmt.Errorf("failed to parse host key: %v", err)
     return
   }
-  user, _ := json.Marshal(c.Header)
+  user, _ := json.Marshal(c.user)
   config := &ssh.ClientConfig{
     User: string(user),
     Auth: []ssh.AuthMethod{
@@ -210,7 +208,7 @@ RECONNECT:
   }()
 
   // Remote listener
-  l, err := sc.Listen("tcp", fmt.Sprintf("%s:%d", c.RemoteHost, c.RemotePort))
+  l, err := sc.Listen("tcp", fmt.Sprintf("0.0.0.0:%s", c.RemotePort))
   if err != nil {
     c.startChan <- fmt.Errorf("failed to listen on remote host: %v", err)
     return
