@@ -24,19 +24,19 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
-nfpm:
-  formats:
-    - deb
-    - rpm
-  replacements:
-    amd64: 64-bit
-    386: 32-bit
-  vendor: "LabStack"
-  homepage: "https://tunnel.labstack.com"
-  maintainer: "Vishal Rana <vr@labstack.com>"
-  description: "Tunnel lets you expose local servers to the internet securely - ngrok alternative, compatible with SSH
-  client."
-  license: "MIT"
+nfpms:
+  - formats:
+      - deb
+      - rpm
+    replacements:
+      amd64: 64-bit
+      386: 32-bit
+    vendor: "LabStack"
+    homepage: "https://tunnel.labstack.com"
+    maintainer: "Vishal Rana <vr@labstack.com>"
+    description: "Tunnel lets you expose local servers to the internet securely - ngrok alternative, compatible with SSH
+    client."
+    license: "MIT"
 checksum:
   name_template: "checksum.txt"
 snapshot:
